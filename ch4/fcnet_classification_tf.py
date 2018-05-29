@@ -7,17 +7,18 @@ from sklearn.metrics import accuracy_score
 
 # Generate synthetic data
 N = 100
+N2 = 50
 w_true = 5
 b_true = 2
 noise_scale = .1
 # Zeros form a Gaussian centered at (-1, -1)
 x_zeros = np.random.multivariate_normal(
-    mean=np.array((-1, -1)), cov=.1*np.eye(2), size=(N/2,))
-y_zeros = np.zeros((N/2,))
+    mean=np.array((0, 0)), cov=.1*np.eye(2), size=(N2,))
+y_zeros = np.zeros((N2,))
 # Ones form a Gaussian centered at (1, 1)
 x_ones = np.random.multivariate_normal(
-    mean=np.array((1, 1)), cov=.1*np.eye(2), size=(N/2,))
-y_ones = np.ones((N/2,))
+    mean=np.array((0, 0)), cov=1.*np.eye(2), size=(N2,))
+y_ones = np.ones((N2,))
 
 x_np = np.vstack([x_zeros, x_ones])
 y_np = np.concatenate([y_zeros, y_ones])
@@ -37,8 +38,8 @@ plt.savefig("fcnet_classification_data.png")
 d = 2
 n_hidden = 15
 with tf.name_scope("placeholders"):
-  x = tf.placeholder(tf.float32, (N, d))
-  y = tf.placeholder(tf.float32, (N,))
+  x = tf.placeholder(tf.float32)
+  y = tf.placeholder(tf.float32)
 with tf.name_scope("layer-1"):
   W = tf.Variable(tf.random_normal((d, n_hidden)))
   b = tf.Variable(tf.random_normal((n_hidden,)))
@@ -67,19 +68,47 @@ with tf.name_scope("summaries"):
 train_writer = tf.summary.FileWriter('/tmp/fcnet-classification-train',
                                      tf.get_default_graph())
 
-n_steps = 200
+n_steps = 801
 with tf.Session() as sess:
   sess.run(tf.global_variables_initializer())
   # Train model
   for i in range(n_steps):
     feed_dict = {x: x_np, y: y_np}
     _, summary, loss = sess.run([train_op, merged, l], feed_dict=feed_dict)
-    print("step %d, loss: %f" % (i, loss))
+    # print("step %d, loss: %f" % (i, loss))
     train_writer.add_summary(summary, i)
 
-  # Make Predictions
-  y_pred_np = sess.run(y_pred, feed_dict={x: x_np})
+    if (i % 10 == 0) :
+      # Make Predictions
+      y_pred_np = sess.run(y_pred, feed_dict={x: x_np})
+      score = accuracy_score(y_np, y_pred_np)
+      print("Classification Accuracy: %f" % score)
 
-score = accuracy_score(y_np, y_pred_np)
-print("Classification Accuracy: %f" % score)
+      vec0 = np.linspace(np.min(x_np[:, 0]), np.max(x_np[:, 0]), num=100)
+      vec1 = np.linspace(np.min(x_np[:, 1]), np.max(x_np[:, 1]), num=100)
+      xv, yv = np.meshgrid(vec0, vec1)
+
+      x_sim_np = np.transpose(np.vstack([np.reshape(xv,10000), np.reshape(yv,10000)]))
+      y_sim_np = sess.run(y_pred, feed_dict={x: x_sim_np})
+
+      plt.clf()
+      plt.xlabel("Dimension 1")
+      plt.ylabel("Dimension 2")
+      plt.title("FCNet Classification Simulations")
+      plt.scatter(x_zeros[:, 0], x_zeros[:, 1], color="blue")
+      plt.scatter(x_ones[:, 0], x_ones[:, 1], color="red")
+      plt.scatter(x_sim_np[:, 0], x_sim_np[:, 1], c=y_sim_np, s=1)
+      plt.pause(0.1)
+
+  print("ready.")
+  plt.show()
+  plt.savefig("fcnet_classification_sim.png")
+
+# plt.clf()
+# plt.xlabel("Dimension 1")
+# plt.ylabel("Dimension 2")
+# plt.title("FCNet Classification Predictions")
+# plt.scatter(x_np[:, 0], x_np[:, 1], c=y_pred_np)
+# plt.savefig("fcnet_classification_pred.png")
+#
 
