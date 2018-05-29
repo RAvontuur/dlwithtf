@@ -6,18 +6,18 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 
 # Generate synthetic data
-N = 100
-N2 = 50
+N1 = 50
+N2 = 200
 w_true = 5
 b_true = 2
 noise_scale = .1
 # Zeros form a Gaussian centered at (-1, -1)
 x_zeros = np.random.multivariate_normal(
-    mean=np.array((0, 0)), cov=.1*np.eye(2), size=(N2,))
-y_zeros = np.zeros((N2,))
+    mean=np.array((-1., -1.)), cov=.1*np.eye(2), size=(N1,))
+y_zeros = np.zeros((N1,))
 # Ones form a Gaussian centered at (1, 1)
 x_ones = np.random.multivariate_normal(
-    mean=np.array((0, 0)), cov=1.*np.eye(2), size=(N2,))
+    mean=np.array((1., 1.)), cov=1.*np.eye(2), size=(N2,))
 y_ones = np.ones((N2,))
 
 x_np = np.vstack([x_zeros, x_ones])
