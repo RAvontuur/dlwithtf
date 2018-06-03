@@ -71,15 +71,18 @@ with tf.Session() as sess:
       _, summary, loss = sess.run([train_op, merged, l], feed_dict=feed_dict)
       print("epoch %d, step %d, loss: %f" % (epoch, step, loss))
       train_writer.add_summary(summary, step)
-    
+
       step += 1
       pos += batch_size
 
-  # Make Predictions
-  valid_y_pred = sess.run(y_pred, feed_dict={x: valid_X})
+      # Make Predictions
+      train_y_pred = sess.run(y_pred, feed_dict={x: train_X})
+      valid_y_pred = sess.run(y_pred, feed_dict={x: valid_X})
 
-score = accuracy_score(valid_y, valid_y_pred)
-print("Unweighted Classification Accuracy: %f" % score)
+      score_train = accuracy_score(train_y, train_y_pred)
+      score = accuracy_score(valid_y, valid_y_pred)
+      print("Unweighted Classification Accuracy: %f %f" % (score_train, score))
 
-weighted_score = accuracy_score(valid_y, valid_y_pred, sample_weight=valid_w)
-print("Weighted Classification Accuracy: %f" % weighted_score)
+      weighted_score_train = accuracy_score(train_y, train_y_pred, sample_weight=train_w)
+      weighted_score = accuracy_score(valid_y, valid_y_pred, sample_weight=valid_w)
+      print("Weighted Classification Accuracy: %f %f" % (weighted_score_train, weighted_score))
