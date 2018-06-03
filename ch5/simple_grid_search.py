@@ -4,7 +4,7 @@ from fcnet_func import eval_tox21_hyperparams
 scores = {}
 n_reps = 3
 hidden_sizes = [50]
-epochs = [10]
+epochs = [50]
 dropouts = [.5, 1.0]
 num_layers = [1, 2]
 
@@ -14,7 +14,7 @@ for rep in range(n_reps):
       for dropout in dropouts:
         for n_layers in num_layers:
           score = eval_tox21_hyperparams(n_hidden=hidden_size, n_epochs=n_epochs,
-                                         dropout_prob=dropout, n_layers=n_layers)
+                                         dropout_prob=dropout, n_layers=n_layers, batch_size=500)
           if (hidden_size, n_epochs, dropout, n_layers) not in scores:
             scores[(hidden_size, n_epochs, dropout, n_layers)] = []
           scores[(hidden_size, n_epochs, dropout, n_layers)].append(score)
@@ -22,7 +22,7 @@ print("All Scores")
 print(scores)
 
 avg_scores = {}
-for params, param_scores in scores.iteritems():
+for params, param_scores in scores.items():
   avg_scores[params] = np.mean(np.array(param_scores))
 print("Scores Averaged over %d repetitions" % n_reps)
 print(avg_scores)

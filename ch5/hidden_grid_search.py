@@ -22,7 +22,7 @@ print("All Scores")
 print(scores)
 
 avg_scores = {}
-for params, param_scores in scores.iteritems():
+for params, param_scores in scores.items():
   avg_scores[params] = np.mean(np.array(param_scores))
 print("Scores Averaged over %d repetitions" % n_reps)
 print(avg_scores)
