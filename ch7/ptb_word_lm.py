@@ -69,17 +69,6 @@ flags.DEFINE_string("save_path", None,
 FLAGS = flags.FLAGS
 
 
-class PTBInput(object):
-    """The input data."""
-
-    def __init__(self, config, data, name=None):
-        self.batch_size = batch_size = config.batch_size
-        self.num_steps = num_steps = config.num_steps
-        self.epoch_size = ((len(data) // batch_size) - 1) // num_steps
-        self.input_data, self.targets = reader.ptb_producer(
-            data, batch_size, num_steps, name=name)
-
-
 def lstm_cell(size):
     return tf.contrib.rnn.BasicLSTMCell(size, forget_bias=0.0, state_is_tuple=True)
 
@@ -87,10 +76,8 @@ def lstm_cell(size):
 class PTBModel(object):
     """The PTB model."""
 
-    def __init__(self, is_training, config, input_):
+    def __init__(self, is_training, config, input_data, targets):
 
-        batch_size = input_.batch_size
-        num_steps = input_.num_steps
         size = config.hidden_size
         vocab_size = config.vocab_size
         attn_cell = lstm_cell
@@ -102,12 +89,12 @@ class PTBModel(object):
             [attn_cell(size) for _ in range(config.num_layers)],
             state_is_tuple=True)
 
-        self.initial_state = cell.zero_state(batch_size, tf.float32)
+        self.initial_state = cell.zero_state(config.batch_size, tf.float32)
 
         with tf.device("/cpu:0"):
             embedding = tf.get_variable(
                 "embedding", [vocab_size, size], dtype=tf.float32)
-            inputs = tf.nn.embedding_lookup(embedding, input_.input_data)
+            inputs = tf.nn.embedding_lookup(embedding, input_data)
 
         if is_training and config.keep_prob < 1:
             inputs = tf.nn.dropout(inputs, config.keep_prob)
@@ -115,7 +102,7 @@ class PTBModel(object):
         outputs = []
         state = self.initial_state
         with tf.variable_scope("RNN"):
-            for time_step in range(num_steps):
+            for time_step in range(config.num_steps):
                 if time_step > 0: tf.get_variable_scope().reuse_variables()
                 (cell_output, state) = cell(inputs[:, time_step, :], state)
                 outputs.append(cell_output)
@@ -128,13 +115,13 @@ class PTBModel(object):
         logits = tf.matmul(output, softmax_w) + softmax_b
 
         # Reshape logits to be 3-D tensor for sequence loss
-        logits = tf.reshape(logits, [batch_size, num_steps, vocab_size])
+        logits = tf.reshape(logits, [config.batch_size, config.num_steps, vocab_size])
 
         # use the contrib sequence loss and average over the batches
         loss = tf.contrib.seq2seq.sequence_loss(
             logits,
-            input_.targets,
-            tf.ones([batch_size, num_steps], dtype=tf.float32),
+            targets,
+            tf.ones([config.batch_size, config.num_steps], dtype=tf.float32),
             average_across_timesteps=False,
             average_across_batch=True
         )
@@ -148,11 +135,12 @@ class PTBModelTraining(object):
     def __init__(self, config, data):
 
         with tf.name_scope("Train"):
-            ptb_input = PTBInput(config=config, data=data, name="TrainInput")
-            with tf.variable_scope("Model", reuse=None, initializer=initializer):
-                m = PTBModel(is_training=True, config=config, input_=ptb_input)
+            input_data, targets = reader.ptb_producer(data, config.batch_size, config.num_steps, name="TrainInput")
 
-        self.input = ptb_input
+            with tf.variable_scope("Model", reuse=None, initializer=initializer):
+                m = PTBModel(is_training=True, config=config, input_data=input_data, targets=targets)
+
+        self.data_size = len(data)
         self.cost = m.cost
         self.initial_state = m.initial_state
         self.final_state = m.final_state
@@ -177,10 +165,11 @@ class PTBModelTraining(object):
 class PTBModelValidation(object):
     def __init__(self, config, data, name):
         with tf.name_scope(name):
-            ptb_input = PTBInput(config=config, data=data, name=name + "Input")
+            # epoch_size = ((len(data) // config.batch_size) - 1) // config.num_steps
+            input_data, targets = reader.ptb_producer(data, config.batch_size, config.num_steps, name=name + "Input")
             with tf.variable_scope("Model", reuse=True, initializer=initializer):
-                m = PTBModel(is_training=False, config=config, input_=ptb_input)
-        self.input = ptb_input
+                m = PTBModel(is_training=False, config=config, input_data=input_data, targets=targets)
+        self.data_size = len(data)
         self.cost = m.cost
         self.initial_state = m.initial_state
         self.final_state = m.final_state
@@ -195,14 +184,14 @@ class SmallConfig(object):
     num_steps = 20
     hidden_size = 200
     max_epoch = 4
-    max_max_epoch = 13
+    max_max_epoch = 1
     keep_prob = 1.0
     lr_decay = 0.5
     batch_size = 20
     vocab_size = 10000
 
 
-def run_epoch(session, model, eval_op=None, verbose=False):
+def run_epoch(session, model, config, eval_op=None, verbose=False):
     """Runs the model on the given data."""
     start_time = time.time()
     costs = 0.0
@@ -216,7 +205,9 @@ def run_epoch(session, model, eval_op=None, verbose=False):
     if eval_op is not None:
         fetches["eval_op"] = eval_op
 
-    for step in range(model.input.epoch_size):
+    epoch_size = ((model.data_size // config.batch_size) - 1) // config.num_steps
+
+    for step in range(epoch_size):
         feed_dict = {}
         for i, (c, h) in enumerate(model.initial_state):
             feed_dict[c] = state[i].c
@@ -227,14 +218,14 @@ def run_epoch(session, model, eval_op=None, verbose=False):
         state = vals["final_state"]
 
         costs += cost
-        iters += model.input.num_steps
+        iters += config.num_steps
 
-        if verbose and step % (model.input.epoch_size // 10) == 10:
+        if verbose and step % (epoch_size // 10) == 10:
             print("%.3f perplexity: %.3f speed: %.0f wps" %
-                  (step * 1.0 / model.input.epoch_size,
+                  (step * 1.0 / epoch_size,
                    np.exp(costs / iters),
                    (iters
-                    * model.input.batch_size / (time.time() - start_time))))
+                    * config.batch_size / (time.time() - start_time))))
 
     return np.exp(costs / iters)
 
@@ -249,8 +240,8 @@ print('play_data = {}'.format(play_data))
 print('len train_data = {}'.format(len(train_data)))
 print('len valid_data = {}'.format(len(valid_data)))
 print('len test_data = {}'.format(len(test_data)))
-# train_data = train_data[0:11000]
-# print('len traindata = {}'.format(len(train_data)))
+train_data = train_data[0:11000]
+print('len traindata = {}'.format(len(train_data)))
 
 with tf.Graph().as_default():
     config = SmallConfig()
@@ -277,13 +268,13 @@ with tf.Graph().as_default():
 
             print("Epoch: %d Learning rate: %.3f"
                   % (i + 1, session.run(m.lr)))
-            train_perplexity = run_epoch(session, m, eval_op=m.train_op,
+            train_perplexity = run_epoch(session, m, config, eval_op=m.train_op,
                                          verbose=True)
             print("Epoch: %d Train Perplexity: %.3f"
                   % (i + 1, train_perplexity))
-            valid_perplexity = run_epoch(session, mvalid)
+            valid_perplexity = run_epoch(session, mvalid, config)
             print("Epoch: %d Valid Perplexity: %.3f"
                   % (i + 1, valid_perplexity))
 
-        test_perplexity = run_epoch(session, mtest)
+        test_perplexity = run_epoch(session, mtest, eval_config)
         print("Test Perplexity: %.3f" % test_perplexity)
