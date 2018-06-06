@@ -75,11 +75,20 @@ def ptb_raw_data(data_path=None):
   test_path = os.path.join(data_path, "ptb.test.txt")
 
   word_to_id = _build_vocab(train_path)
+  # results in:
+  # word_to_id
+  # {'tribe': 8481, 'installed': 3845, 'violation': 3655, 'figured': 5395, 'fireman': 4119,
+  #  'presumably': 9284, 'she': 163, 'ranks': 4348, 'knocking': 6984, 'barclays': 7277, ...
+
   train_data = _file_to_word_ids(train_path, word_to_id)
   valid_data = _file_to_word_ids(valid_path, word_to_id)
   test_data = _file_to_word_ids(test_path, word_to_id)
+  # results in:
+  # [102, 14, 24, 32, 752, 381, 2, 29, 120, 0, 35, 92, ...
+
   vocabulary = len(word_to_id)
-  return train_data, valid_data, test_data, vocabulary
+
+  return train_data, valid_data, test_data, word_to_id
 
 
 def ptb_producer(raw_data, batch_size, num_steps, name=None):
