@@ -146,6 +146,7 @@ class PTBModel(object):
 
     # Reshape logits to be 3-D tensor for sequence loss
     logits = tf.reshape(logits, [batch_size, num_steps, vocab_size])
+    self.logits = logits
 
     # use the contrib sequence loss and average over the batches
     loss = tf.contrib.seq2seq.sequence_loss(
@@ -206,6 +207,7 @@ def run_epoch(session, model, eval_op=None, verbose=False):
   fetches = {
       "cost": model.cost,
       "final_state": model.final_state,
+      "logits": model.logits
   }
   if eval_op is not None:
     fetches["eval_op"] = eval_op
@@ -223,12 +225,16 @@ def run_epoch(session, model, eval_op=None, verbose=False):
     costs += cost
     iters += model.input.num_steps
 
-    if verbose and step % (model.input.epoch_size // 10) == 10:
+    if verbose and step % (model.input.epoch_size // 10) == 0:
       print("%.3f perplexity: %.3f speed: %.0f wps" %
             (step * 1.0 / model.input.epoch_size,
              np.exp(costs / iters),
              (iters
               * model.input.batch_size/(time.time() - start_time))))
+
+      logits = vals["logits"]
+      print(logits.shape)
+      print(np.argmax(logits, axis=2))
 
   return np.exp(costs / iters)
 
