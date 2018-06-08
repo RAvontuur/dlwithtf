@@ -92,8 +92,7 @@ class PTBModel(object):
         self.initial_state = cell.zero_state(config.batch_size, tf.float32)
 
         with tf.device("/cpu:0"):
-            embedding = tf.get_variable(
-                "embedding", [vocab_size, size], dtype=tf.float32)
+            embedding = tf.get_variable("embedding", [vocab_size, size], dtype=tf.float32)
             inputs = tf.nn.embedding_lookup(embedding, input_data)
 
         if is_training and config.keep_prob < 1:
@@ -116,6 +115,7 @@ class PTBModel(object):
 
         # Reshape logits to be 3-D tensor for sequence loss
         logits = tf.reshape(logits, [config.batch_size, config.num_steps, vocab_size])
+        self.logits = logits
 
         # use the contrib sequence loss and average over the batches
         loss = tf.contrib.seq2seq.sequence_loss(
@@ -133,6 +133,8 @@ class PTBModel(object):
 
 class PTBModelTraining(object):
     def __init__(self, config, data):
+        initializer = tf.random_uniform_initializer(-config.init_scale,
+                                                    config.init_scale)
 
         with tf.name_scope("Train"):
             input_data, targets = reader.ptb_producer(data, config.batch_size, config.num_steps, name="TrainInput")
@@ -140,7 +142,11 @@ class PTBModelTraining(object):
             with tf.variable_scope("Model", reuse=None, initializer=initializer):
                 m = PTBModel(is_training=True, config=config, input_data=input_data, targets=targets)
 
+        self.config = config
+        self.is_training = True
+        self.is_prediction = True
         self.data_size = len(data)
+        self.logits = m.logits
         self.cost = m.cost
         self.initial_state = m.initial_state
         self.final_state = m.final_state
@@ -164,13 +170,33 @@ class PTBModelTraining(object):
 
 class PTBModelValidation(object):
     def __init__(self, config, data, name):
+
         with tf.name_scope(name):
-            # epoch_size = ((len(data) // config.batch_size) - 1) // config.num_steps
             input_data, targets = reader.ptb_producer(data, config.batch_size, config.num_steps, name=name + "Input")
-            with tf.variable_scope("Model", reuse=True, initializer=initializer):
+            with tf.variable_scope("Model", reuse=True):
                 m = PTBModel(is_training=False, config=config, input_data=input_data, targets=targets)
+        self.config = config
+        self.is_training = False
+        self.is_prediction = False
+        self.data_size = len(data)
+        self.logits = m.logits
+        self.cost = m.cost
+        self.initial_state = m.initial_state
+        self.final_state = m.final_state
+
+class PTBModelPrediction(object):
+    def __init__(self, config, data, name):
+
+        with tf.name_scope(name):
+            input_data, targets = reader.ptb_producer(data,  config.batch_size, config.num_steps, name=name + "Input")
+            with tf.variable_scope("Model", reuse=True):
+                m = PTBModel(is_training=False, config=config, input_data=input_data, targets=targets)
+        self.config = config
+        self.is_training = False
+        self.is_prediction = True
         self.data_size = len(data)
         self.cost = m.cost
+        self.logits = m.logits
         self.initial_state = m.initial_state
         self.final_state = m.final_state
 
@@ -191,7 +217,7 @@ class SmallConfig(object):
     vocab_size = 10000
 
 
-def run_epoch(session, model, config, eval_op=None, verbose=False):
+def run_epoch(session, model):
     """Runs the model on the given data."""
     start_time = time.time()
     costs = 0.0
@@ -202,10 +228,14 @@ def run_epoch(session, model, config, eval_op=None, verbose=False):
         "cost": model.cost,
         "final_state": model.final_state,
     }
-    if eval_op is not None:
-        fetches["eval_op"] = eval_op
+    if model.is_training:
+        fetches["eval_op"] = model.train_op
 
-    epoch_size = ((model.data_size // config.batch_size) - 1) // config.num_steps
+    if model.is_prediction:
+        fetches["logits"] = model.logits
+
+    epoch_size = ((model.data_size // model.config.batch_size) - 1) // model.config.num_steps
+    print('epoch_size {}'.format(epoch_size))
 
     for step in range(epoch_size):
         feed_dict = {}
@@ -218,35 +248,53 @@ def run_epoch(session, model, config, eval_op=None, verbose=False):
         state = vals["final_state"]
 
         costs += cost
-        iters += config.num_steps
+        iters += model.config.num_steps
 
-        if verbose and step % (epoch_size // 10) == 10:
-            print("%.3f perplexity: %.3f speed: %.0f wps" %
-                  (step * 1.0 / epoch_size,
+        if (epoch_size < 11) or (step % (epoch_size // 10) == 0):
+            if model.is_prediction:
+                logits = vals["logits"]
+                print(logits.shape)
+                print(np.argmax(logits, axis=2))
+
+            print("step: %3d perplexity: %.3f speed: %.0f wps" %
+                  (step,
                    np.exp(costs / iters),
                    (iters
-                    * config.batch_size / (time.time() - start_time))))
+                    * model.config.batch_size / (time.time() - start_time))))
 
     return np.exp(costs / iters)
 
 
 raw_data = reader.ptb_raw_data("./simple-examples/data")
-train_data, valid_data, test_data, word_to_id = raw_data
+train_data, valid_data, test_data, word_to_id, id_to_word = raw_data
 
-print('fireman = {}'.format(word_to_id['fireman']))
-play_data = [word_to_id['fireman']]
+idFireman = word_to_id['fireman']
+print('fireman = {}'.format(idFireman))
+print('fireman recovered = {}'.format(id_to_word[idFireman]))
+print('water = {}'.format(word_to_id['water']))
+play_data = [word_to_id['fireman'], word_to_id['water']]
 print('play_data = {}'.format(play_data))
+
+print('word 0 = {}'.format(id_to_word[0]))
+print('word 1 = {}'.format(id_to_word[1]))
+print('word 2 = {}'.format(id_to_word[2]))
+print('word 3 = {}'.format(id_to_word[3]))
+print('word 4 = {}'.format(id_to_word[4]))
+print('word 5 = {}'.format(id_to_word[5]))
+print('word 6 = {}'.format(id_to_word[6]))
+print('word 7 = {}'.format(id_to_word[7]))
+print('word 8 = {}'.format(id_to_word[8]))
+print('word 9 = {}'.format(id_to_word[9]))
+# the, <unk>, <eos>, N, of, to, a, in, and, 's
 
 print('len train_data = {}'.format(len(train_data)))
 print('len valid_data = {}'.format(len(valid_data)))
 print('len test_data = {}'.format(len(test_data)))
-train_data = train_data[0:11000]
+train_data = train_data[0:10000]
 print('len traindata = {}'.format(len(train_data)))
 
 with tf.Graph().as_default():
     config = SmallConfig()
-    initializer = tf.random_uniform_initializer(-config.init_scale,
-                                                config.init_scale)
 
     m = PTBModelTraining(config=config, data=train_data)
     tf.summary.scalar("Training Loss", m.cost)
@@ -259,22 +307,25 @@ with tf.Graph().as_default():
     eval_config.batch_size = 1
     eval_config.num_steps = 1
     mtest = PTBModelValidation(config=eval_config, data=test_data, name="Test")
+    mplay = PTBModelPrediction(config=eval_config, data=play_data, name="Play")
 
     sv = tf.train.MonitoredTrainingSession()
     with sv as session:
         for i in range(config.max_max_epoch):
             lr_decay = config.lr_decay ** max(i + 1 - config.max_epoch, 0.0)
             m.assign_lr(session, config.learning_rate * lr_decay)
+            print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
 
-            print("Epoch: %d Learning rate: %.3f"
-                  % (i + 1, session.run(m.lr)))
-            train_perplexity = run_epoch(session, m, config, eval_op=m.train_op,
-                                         verbose=True)
-            print("Epoch: %d Train Perplexity: %.3f"
-                  % (i + 1, train_perplexity))
-            valid_perplexity = run_epoch(session, mvalid, config)
-            print("Epoch: %d Valid Perplexity: %.3f"
-                  % (i + 1, valid_perplexity))
+            train_perplexity = run_epoch(session, m)
+            print("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
 
-        test_perplexity = run_epoch(session, mtest, eval_config)
+            play_perplexity = run_epoch(session, mplay)
+            print("Epoch: %d Play Perplexity: %.3f"
+                  % (i + 1, play_perplexity))
+
+        valid_perplexity = run_epoch(session, mvalid)
+        print("Epoch: %d Valid Perplexity: %.3f"
+              % (i + 1, valid_perplexity))
+
+        test_perplexity = run_epoch(session, mtest)
         print("Test Perplexity: %.3f" % test_perplexity)
