@@ -131,20 +131,20 @@ class A3C(object):
     d2 = Dense(
         in_layers=[d1],
         activation_fn=tf.nn.relu,
-        normalizer_fn=tf.nn.l2_normalize,
-        normalizer_params={"dim": 1},
+        # normalizer_fn=tf.nn.l2_normalize,
+        # normalizer_params={"dim": 1},
         out_channels=64)
     d3 = Dense(
         in_layers=[d2],
         activation_fn=tf.nn.relu,
-        normalizer_fn=tf.nn.l2_normalize,
-        normalizer_params={"dim": 1},
+        # normalizer_fn=tf.nn.l2_normalize,
+        # normalizer_params={"dim": 1},
         out_channels=32)
     d4 = Dense(
         in_layers=[d3],
         activation_fn=tf.nn.relu,
-        normalizer_fn=tf.nn.l2_normalize,
-        normalizer_params={"dim": 1},
+        # normalizer_fn=tf.nn.l2_normalize,
+        # normalizer_params={"dim": 1},
         out_channels=16)
     d4 = BatchNorm(in_layers=[d4])
     d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=9)
@@ -244,7 +244,7 @@ class A3C(object):
 
   def select_action(self,
                     state,
-                    deterministic=False):
+                    deterministic=False, printresults=False):
     """Select an action to perform based on the environment's state.
 
     Parameters
@@ -261,14 +261,17 @@ class A3C(object):
     """
     with self._graph._get_tf("Graph").as_default():
       feed_dict = self.create_feed_dict(state)
-      tensors = [self._action_prob.out_tensor]
+      tensors = [self._action_prob.out_tensor,
+                 self._value.out_tensor]
       results = self._session.run(tensors, feed_dict=feed_dict)
       probabilities = results[0]
+      value = results[1]
       if deterministic:
-        return probabilities.argmax()
+        action = probabilities.argmax()
       else:
-        return np.random.choice(
+        action = np.random.choice(
             np.arange(self._env.n_actions), p=probabilities[0])
+      return action, probabilities, value
 
   def restore(self):
     """Reload the model parameters from the most recent checkpoint file."""
@@ -365,17 +368,26 @@ class Worker(object):
     if len(states) == 0:
       # Rollout creation sometimes fails in multithreaded environment.
       # Don't process if malformed
-      print("Rollout creation failed. Skipping")    
+      print("Rollout creation failed. Skipping")
       return
+
+    # print('rewards {}'.format(rewards))
+    # print('values {}'.format(values))
+    # print('values-1 {}'.format(values[-1]))
+    # print('values:-1 {}'.format(values[:-1]))
+    # print('values1: {}'.format(values[1:]))
 
     discounted_rewards = rewards.copy()
     discounted_rewards[-1] += values[-1]
     advantages = rewards - values[:-1] + self.a3c.discount_factor * np.array(
-        values[1:])
+      values[1:])
+    # print('advantages 1 {}'.format(advantages))
+
     for j in range(len(rewards) - 1, 0, -1):
       discounted_rewards[j-1] += self.a3c.discount_factor * discounted_rewards[j]
       advantages[j-1] += (
-          self.a3c.discount_factor * self.a3c.advantage_lambda * advantages[j])
+              self.a3c.discount_factor * self.a3c.advantage_lambda * advantages[j])
+    # print('advantages 2 {}'.format(advantages))
 
     # Convert the actions to one-hot.
     n_actions = self.env.n_actions
@@ -390,7 +402,7 @@ class Worker(object):
     for state in states:
       for j in range(len(state)):
         state_arrays[j].append(state[j])
-    
+
     # Build the feed dict and apply gradients.
     feed_dict = {}
     for f, s in zip(self.features, state_arrays):

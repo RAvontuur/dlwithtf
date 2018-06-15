@@ -39,11 +39,11 @@ class TicTacToeEnvironment(Environment):
   O = np.array([0.0, 1.0])
   EMPTY = np.array([0.0, 0.0])
 
-  ILLEGAL_MOVE_PENALTY = -3.0
-  LOSS_PENALTY = -3.0
-  NOT_LOSS = 0.1
-  DRAW_REWARD = 5.0
-  WIN_REWARD = 10.0
+  ILLEGAL_MOVE_PENALTY = -1.0
+  LOSS_PENALTY = 0.0
+  NOT_LOSS = 0.0
+  DRAW_REWARD = 0.0
+  WIN_REWARD = 0.0
 
   def __init__(self):
     super(TicTacToeEnvironment, self).__init__([(3, 3, 2)], 9)
