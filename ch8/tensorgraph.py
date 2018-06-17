@@ -230,7 +230,7 @@ class Dense(Layer):
       out_channels,
       activation_fn=None,
       biases_initializer=tf.zeros_initializer,
-      weights_initializer=tf.contrib.layers.variance_scaling_initializer,
+      weights_initializer=None,
       **kwargs):
     """Create a dense layer.
 
@@ -266,12 +266,18 @@ class Dense(Layer):
     if self.biases_initializer is None:
       biases_initializer = None
     else:
-      biases_initializer = self.biases_initializer()
+      biases_initializer = self.biases_initializer
+
+    if self.weights_initializer is None:
+      weights_initializer = tf.contrib.layers.variance_scaling_initializer()
+    else:
+      weights_initializer = self.weights_initializer
+
     out_tensor = tf.contrib.layers.fully_connected(parent,
                                                    num_outputs=self.out_channels,
                                                    activation_fn=self.activation_fn,
                                                    biases_initializer=biases_initializer,
-                                                   weights_initializer=self.weights_initializer(),
+                                                   weights_initializer=weights_initializer,
                                                    reuse=False,
                                                    trainable=True)
     self.out_tensor = out_tensor

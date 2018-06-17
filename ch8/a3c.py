@@ -128,27 +128,43 @@ class A3C(object):
     for s in state_shape:
       features.append(Input(shape=[None] + list(s), dtype=tf.float32))
     d1 = Flatten(in_layers=features)
-    d2 = Dense(
-        in_layers=[d1],
-        activation_fn=tf.nn.relu,
-        # normalizer_fn=tf.nn.l2_normalize,
-        # normalizer_params={"dim": 1},
-        out_channels=64)
-    d3 = Dense(
-        in_layers=[d2],
-        activation_fn=tf.nn.relu,
-        # normalizer_fn=tf.nn.l2_normalize,
-        # normalizer_params={"dim": 1},
-        out_channels=32)
-    d4 = Dense(
-        in_layers=[d3],
-        activation_fn=tf.nn.relu,
-        # normalizer_fn=tf.nn.l2_normalize,
-        # normalizer_params={"dim": 1},
-        out_channels=16)
-    d4 = BatchNorm(in_layers=[d4])
-    d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=9)
-    value = Dense(in_layers=[d4], activation_fn=None, out_channels=1)
+    # d2 = Dense(
+    #     in_layers=[d1],
+    #     activation_fn=tf.nn.relu,
+    #     # normalizer_fn=tf.nn.l2_normalize,
+    #     # normalizer_params={"dim": 1},
+    #     out_channels=64)
+    # d3 = Dense(
+    #     in_layers=[d2],
+    #     activation_fn=tf.nn.relu,
+    #     # normalizer_fn=tf.nn.l2_normalize,
+    #     # normalizer_params={"dim": 1},
+    #     out_channels=32)
+    # d4 = Dense(
+    #     in_layers=[d3],
+    #     activation_fn=tf.nn.relu,
+    #     # normalizer_fn=tf.nn.l2_normalize,
+    #     # normalizer_params={"dim": 1},
+    #     out_channels=16)
+    # d4 = BatchNorm(in_layers=[d4])
+    tictactoe_rules_weights = tf.constant_initializer(np.transpose(np.array(
+      [[-1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1]])))
+
+    tictactoe_rules_biases = tf.constant_initializer(-1.0 * np.array(
+       [1, 1, 1, 1, 1, 1, 1, 1, 1]))
+
+    d5 = Dense(in_layers=[d1], activation_fn=None, out_channels=9,
+               biases_initializer=tictactoe_rules_biases,
+               weights_initializer=tictactoe_rules_weights)
+    value = Dense(in_layers=[d1], activation_fn=None, out_channels=1)
     value = Squeeze(squeeze_dims=1, in_layers=[value])
     action_prob = SoftMax(in_layers=[d5])
 
@@ -173,6 +189,11 @@ class A3C(object):
       with tf.variable_scope(scope):
         graph.build()
     return graph, features, rewards, actions, action_prob, value, advantages
+
+  def initialize(self):
+      with self._graph._get_tf("Graph").as_default():
+        self._session.run(tf.global_variables_initializer())
+
 
   def fit(self,
           total_steps,
