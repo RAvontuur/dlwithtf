@@ -202,8 +202,14 @@ class A3C(object):
       for i in range(multiprocessing.cpu_count()):
         workers.append(Worker(self, i))
       self._session.run(tf.global_variables_initializer())
-      if restore:
-        self.restore()
+
+      try:
+        if restore:
+          self.restore()
+      except:
+        print("unable to restore")
+        pass
+
       for worker in workers:
         thread = threading.Thread(
             name=worker.scope,

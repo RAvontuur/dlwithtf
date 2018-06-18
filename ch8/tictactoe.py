@@ -42,12 +42,8 @@ def eval_tic_tac_toe(value_weight,
         value_weight=value_weight,
         model_dir=model_dir,
         advantage_lambda=advantage_lambda)
-    try:
-      a3c_engine.restore()
-    except:
-      print("unable to restore")
-      pass
-    a3c_engine.fit(rollouts)
+
+    a3c_engine.fit(rollouts, restore=True)
     rewards = []
     for i in range(games):
       env.reset()
