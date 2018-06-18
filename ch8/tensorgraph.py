@@ -355,3 +355,14 @@ class Input(Layer):
     out_tensor = tf.placeholder(dtype=self.dtype, shape=self._shape)
     self.out_tensor = out_tensor
     return out_tensor
+
+class Constant(Layer):
+
+  def __init__(self, constant,  in_layers=None, **kwargs):
+    self.constant = constant
+    super(Constant, self).__init__(in_layers, **kwargs)
+
+  def create_tensor(self, in_layers=None, **kwargs):
+    out_tensor = tf.constant(self.constant)
+    self.out_tensor = out_tensor
+    return out_tensor

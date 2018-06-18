@@ -25,6 +25,7 @@ from tensorgraph import Flatten
 from tensorgraph import BatchNorm
 from tensorgraph import SoftMax
 from tensorgraph import Input
+from tensorgraph import Constant
 
 
 class A3CLoss(Layer):
@@ -161,11 +162,13 @@ class A3C(object):
     tictactoe_rules_biases = tf.constant_initializer(-1.0 * np.array(
        [1, 1, 1, 1, 1, 1, 1, 1, 1]))
 
-    d5 = Dense(in_layers=[d1], activation_fn=None, out_channels=9,
-               biases_initializer=tictactoe_rules_biases,
-               weights_initializer=tictactoe_rules_weights)
-    value = Dense(in_layers=[d1], activation_fn=None, out_channels=1)
-    value = Squeeze(squeeze_dims=1, in_layers=[value])
+    d5 = Dense(in_layers=[d1], activation_fn=None, out_channels=9)
+               # biases_initializer=tictactoe_rules_biases,
+               # weights_initializer=tictactoe_rules_weights)
+    # value = Dense(in_layers=[d1], activation_fn=None, out_channels=1)
+    # remove dimensions of size 1
+    # value = Squeeze(squeeze_dims=1, in_layers=[value])
+    value = Constant([0.])
     action_prob = SoftMax(in_layers=[d5])
 
     rewards = Input(shape=(None,))
@@ -223,8 +226,15 @@ class A3C(object):
       for i in range(multiprocessing.cpu_count()):
         workers.append(Worker(self, i))
       self._session.run(tf.global_variables_initializer())
-      if restore:
-        self.restore()
+
+      try:
+        if restore:
+          self.restore()
+          print("restored")
+      except:
+        print("unable to restore")
+        pass
+
       for worker in workers:
         thread = threading.Thread(
             name=worker.scope,

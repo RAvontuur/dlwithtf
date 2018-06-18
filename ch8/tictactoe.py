@@ -6,22 +6,23 @@ import shutil
 from a3c import A3C
 from environment import TicTacToeEnvironment
 
-def test_run(a3c_engine, env, games, j):
+def test_run(a3c_engine, env, games, round):
     rewards = []
     illegals = []
     losses = []
     draws = []
     wins = []
+    nprint = 1
     for i in range(games):
         env.reset()
-        if i < 10:
+        if i < nprint:
             print('GAME {}'.format(i))
         while not env.terminated:
-            if i < 10:
-                print('state: {}'.format(env.state))
+            # if i < nprint:
+            #     print('state: {}'.format(env.state))
             action, probabilities, value = a3c_engine.select_action(env.state, deterministic=True)
             reward = env.step(action)
-            if i < 10:
+            if i < nprint:
                 print('action: {}'.format(action))
                 print('reward: {}'.format(reward))
                 print('probabilities: {}'.format(probabilities))
@@ -49,11 +50,11 @@ def test_run(a3c_engine, env, games, j):
         else:
             wins.append(0.0)
 
-    print("Mean reward at round %d is %f" % (j + 1, np.mean(rewards)))
-    print("Mean illegals at round %d is %f" % (j + 1, np.mean(illegals)))
-    print("Mean losses at round %d is %f" % (j + 1, np.mean(losses)))
-    print("Mean draws at round %d is %f" % (j + 1, np.mean(draws)))
-    print("Mean wins at round %d is %f" % (j + 1, np.mean(wins)))
+    print("Mean reward at round %d is %f" % (round, np.mean(rewards)))
+    print("Mean illegals at round %d is %f" % (round, np.mean(illegals)))
+    print("Mean losses at round %d is %f" % (round, np.mean(losses)))
+    print("Mean draws at round %d is %f" % (round, np.mean(draws)))
+    print("Mean wins at round %d is %f" % (round, np.mean(wins)))
     return rewards
 
 def eval_tic_tac_toe(value_weight,
@@ -87,11 +88,11 @@ def eval_tic_tac_toe(value_weight,
             advantage_lambda=advantage_lambda)
     a3c_engine.initialize()
 
-    test_run(a3c_engine, env, games, -1)
+    test_run(a3c_engine, env, games, 0)
 
     avg_rewards = []
     for j in range(num_epoch_rounds):
-        print("Epoch round: %d" % j)
+        print("Epoch round: %d" % (j+1))
 
         a3c_engine = A3C(
             env,
@@ -100,14 +101,9 @@ def eval_tic_tac_toe(value_weight,
             model_dir=model_dir,
             advantage_lambda=advantage_lambda)
 
-        try:
-            a3c_engine.restore()
-        except:
-            print("unable to restore")
-            pass
-        a3c_engine.fit(rollouts)
+        a3c_engine.fit(rollouts, restore=True)
 
-        rewards = test_run(a3c_engine, env, games, j)
+        rewards = test_run(a3c_engine, env, games, j+1)
 
         avg_rewards.append({(j + 1) * rollouts: np.mean(rewards)})
     return avg_rewards
