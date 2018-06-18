@@ -1,0 +1,89 @@
+Experiment 1
+- separate learning of the game rules
+SoftMax(in_layers=[Add(in_layers=[d5, d2b], constants=[0.5, 0.5])])
+- nodes: 72, 36, 18
+- value_weight=0.2, num_epoch_rounds=20,advantage_lambda=0.1, games=10**4, rollouts=5*10**4
+
+Mean reward at round 1 is 8.721100
+Mean illegals at round 1 is 0.000000
+Mean losses at round 1 is 0.038800
+Mean draws at round 1 is 0.154900
+Mean wins at round 1 is 0.806300
+Epoch round: 1
+Mean reward at round 2 is 8.928780
+Mean illegals at round 2 is 0.004200
+Mean losses at round 2 is 0.026900
+Mean draws at round 2 is 0.133300
+Mean wins at round 2 is 0.835600
+Epoch round: 2
+Mean reward at round 3 is 9.305900
+Mean illegals at round 3 is 0.000000
+Mean losses at round 3 is 0.014200
+Mean draws at round 3 is 0.101900
+Mean wins at round 3 is 0.883900
+...
+Epoch round: 19
+Mean reward at round 20 is 9.431500
+Mean illegals at round 20 is 0.000000
+Mean losses at round 20 is 0.000000
+Mean draws at round 20 is 0.113700
+Mean wins at round 20 is 0.886300
+
+Experiment 2:
+- nodes: 144, 72, 36
+- value_weight=0.2, num_epoch_rounds=20,advantage_lambda=0.1, games=10**5, rollouts=2*10**5
+- higher accuracy for test-run
+
+Epoch round: 7
+Mean reward at round 8 is 9.438320
+Mean illegals at round 8 is 0.000000
+Mean losses at round 8 is 0.000960
+Mean draws at round 8 is 0.109840
+Mean wins at round 8 is 0.889200
+
+Experiment 3
+- nodes: 72, 36, 18
+- value_weight=0.2, num_epoch_rounds=20,advantage_lambda=0.5, games=10**5, rollouts=2*10**5
+
+Mean reward at round 5 is 9.419900
+Mean illegals at round 5 is 0.000000
+Mean losses at round 5 is 0.010850
+Mean draws at round 5 is 0.087810
+Mean wins at round 5 is 0.901340
+Epoch round: 5
+Mean reward at round 6 is 9.447350
+Mean illegals at round 6 is 0.000000
+Mean losses at round 6 is 0.000000
+Mean draws at round 6 is 0.110530
+Mean wins at round 6 is 0.889470
+Epoch round: 6
+Mean reward at round 7 is 9.372382
+Mean illegals at round 7 is 0.001180
+Mean losses at round 7 is 0.010470
+Mean draws at round 7 is 0.095210
+Mean wins at round 7 is 0.893140
+Epoch round: 7
+Mean reward at round 8 is 9.457070
+Mean illegals at round 8 is 0.000000
+Mean losses at round 8 is 0.003010
+Mean draws at round 8 is 0.100760
+Mean wins at round 8 is 0.896230
+
+Experiment 3
+- nodes: 72, 36, 18
+- value_weight=1.0, num_epoch_rounds=20,advantage_lambda=0.5, games=10**5, rollouts=2*10**5
+
+Mean reward at round 7 is 9.450200
+Mean illegals at round 7 is 0.000000
+Mean losses at round 7 is 0.000000
+Mean draws at round 7 is 0.109960
+Mean wins at round 7 is 0.890040
+
+Experiment 3
+- nodes: 72, 36, 18
+- value_weight=1.0, num_epoch_rounds=20,advantage_lambda=0.9, games=10**5, rollouts=2*10**5
+Mean reward at round 9 is 9.421960
+Mean illegals at round 9 is 0.000000
+Mean losses at round 9 is 0.003580
+Mean draws at round 9 is 0.106300
+Mean wins at round 9 is 0.890120

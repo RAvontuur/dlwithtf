@@ -230,7 +230,8 @@ class Dense(Layer):
       out_channels,
       activation_fn=None,
       biases_initializer=tf.zeros_initializer,
-      weights_initializer=tf.contrib.layers.variance_scaling_initializer,
+      weights_initializer=None,
+      trainable=True,
       **kwargs):
     """Create a dense layer.
 
@@ -257,6 +258,7 @@ class Dense(Layer):
     self.activation_fn = activation_fn
     self.biases_initializer = biases_initializer
     self.weights_initializer = weights_initializer
+    self.trainable = trainable
 
   def create_tensor(self, in_layers=None, **kwargs):
     inputs = self._get_input_tensors(in_layers)
@@ -266,14 +268,20 @@ class Dense(Layer):
     if self.biases_initializer is None:
       biases_initializer = None
     else:
-      biases_initializer = self.biases_initializer()
+      biases_initializer = self.biases_initializer
+
+    if self.weights_initializer is None:
+      weights_initializer = tf.contrib.layers.variance_scaling_initializer()
+    else:
+      weights_initializer = self.weights_initializer
+
     out_tensor = tf.contrib.layers.fully_connected(parent,
                                                    num_outputs=self.out_channels,
                                                    activation_fn=self.activation_fn,
                                                    biases_initializer=biases_initializer,
-                                                   weights_initializer=self.weights_initializer(),
+                                                   weights_initializer=weights_initializer,
                                                    reuse=False,
-                                                   trainable=True)
+                                                   trainable=self.trainable)
     self.out_tensor = out_tensor
     return out_tensor
 
@@ -347,5 +355,20 @@ class Input(Layer):
     if in_layers is None:
       in_layers = self.in_layers
     out_tensor = tf.placeholder(dtype=self.dtype, shape=self._shape)
+    self.out_tensor = out_tensor
+    return out_tensor
+
+class Add(Layer):
+
+  def __init__(self, in_layers=None, constants=None, **kwargs):
+    self.constants = constants
+    super(Add, self).__init__(in_layers, **kwargs)
+
+  def create_tensor(self, in_layers=None, **kwargs):
+    inputs = self._get_input_tensors(in_layers)
+    out_tensor = self.constants[0] * inputs[0]
+    for i in range(1, len(inputs)):
+      out_tensor = out_tensor + self.constants[1] * inputs[i]
+
     self.out_tensor = out_tensor
     return out_tensor

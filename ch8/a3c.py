@@ -25,6 +25,7 @@ from tensorgraph import Flatten
 from tensorgraph import BatchNorm
 from tensorgraph import SoftMax
 from tensorgraph import Input
+from tensorgraph import Add
 
 
 class A3CLoss(Layer):
@@ -131,26 +132,40 @@ class A3C(object):
     d2 = Dense(
         in_layers=[d1],
         activation_fn=tf.nn.relu,
-        normalizer_fn=tf.nn.l2_normalize,
-        normalizer_params={"dim": 1},
-        out_channels=64)
+        out_channels=72)
     d3 = Dense(
         in_layers=[d2],
         activation_fn=tf.nn.relu,
-        normalizer_fn=tf.nn.l2_normalize,
-        normalizer_params={"dim": 1},
-        out_channels=32)
+        out_channels=36)
     d4 = Dense(
         in_layers=[d3],
         activation_fn=tf.nn.relu,
-        normalizer_fn=tf.nn.l2_normalize,
-        normalizer_params={"dim": 1},
-        out_channels=16)
+        out_channels=18)
     d4 = BatchNorm(in_layers=[d4])
     d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=9)
+
+    tictactoe_rules_weights = tf.constant_initializer(10.0 * np.transpose(np.array(
+      [[-1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0],
+       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1]])))
+
+    tictactoe_rules_biases = tf.constant_initializer(-10.0 * np.array(
+      [1, 1, 1, 1, 1, 1, 1, 1, 1]))
+
+    d2b = Dense(in_layers=[d1], activation_fn=None, out_channels=9,
+               biases_initializer=tictactoe_rules_biases,
+               weights_initializer=tictactoe_rules_weights,
+               trainable=False)
+
     value = Dense(in_layers=[d4], activation_fn=None, out_channels=1)
     value = Squeeze(squeeze_dims=1, in_layers=[value])
-    action_prob = SoftMax(in_layers=[d5])
+    action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b], constants=[0.5, 0.5])])
 
     rewards = Input(shape=(None,))
     advantages = Input(shape=(None,))
