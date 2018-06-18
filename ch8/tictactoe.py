@@ -45,14 +45,44 @@ def eval_tic_tac_toe(value_weight,
 
     a3c_engine.fit(rollouts, restore=True)
     rewards = []
+    illegals = []
+    losses = []
+    draws = []
+    wins = []
     for i in range(games):
-      env.reset()
-      reward = -float('inf')
-      while not env.terminated:
-        action = a3c_engine.select_action(env.state)
-        reward = env.step(action)
-      rewards.append(reward)
-    print("Mean reward at round %d is %f" % (j+1, np.mean(rewards)))
+        env.reset()
+        reward = -float('inf')
+        while not env.terminated:
+            action = a3c_engine.select_action(env.state, deterministic=True)
+            reward = env.step(action)
+
+        rewards.append(reward)
+        if abs(reward - TicTacToeEnvironment.ILLEGAL_MOVE_PENALTY) < 0.001:
+            illegals.append(1.0)
+        else:
+            illegals.append(0.0)
+
+        if abs(reward - TicTacToeEnvironment.LOSS_PENALTY) < 0.001:
+            losses.append(1.0)
+        else:
+            losses.append(0.0)
+
+        if abs(reward - TicTacToeEnvironment.DRAW_REWARD) < 0.001:
+            draws.append(1.0)
+        else:
+            draws.append(0.0)
+
+        if abs(reward - TicTacToeEnvironment.WIN_REWARD) < 0.001:
+            wins.append(1.0)
+        else:
+            wins.append(0.0)
+
+    print("Mean reward at round %d is %f" % (j + 1, np.mean(rewards)))
+    print("Mean illegals at round %d is %f" % (j + 1, np.mean(illegals)))
+    print("Mean losses at round %d is %f" % (j + 1, np.mean(losses)))
+    print("Mean draws at round %d is %f" % (j + 1, np.mean(draws)))
+    print("Mean wins at round %d is %f" % (j + 1, np.mean(wins)))
+
     avg_rewards.append({(j + 1) * rollouts: np.mean(rewards)})
   return avg_rewards
 

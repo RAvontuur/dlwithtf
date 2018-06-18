@@ -39,7 +39,7 @@ class TicTacToeEnvironment(Environment):
   O = np.array([0.0, 1.0])
   EMPTY = np.array([0.0, 0.0])
 
-  ILLEGAL_MOVE_PENALTY = -3.0
+  ILLEGAL_MOVE_PENALTY = -3.1
   LOSS_PENALTY = -3.0
   NOT_LOSS = 0.1
   DRAW_REWARD = 5.0
