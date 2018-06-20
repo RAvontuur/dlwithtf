@@ -39,17 +39,26 @@ class TicTacToeEnvironment(Environment):
   O = np.array([0.0, 1.0])
   EMPTY = np.array([0.0, 0.0])
 
-  ILLEGAL_MOVE_PENALTY = -3.1
-  LOSS_PENALTY = -3.0
-  NOT_LOSS = 0.1
-  DRAW_REWARD = 5.0
-  WIN_REWARD = 10.0
-
   def __init__(self):
     super(TicTacToeEnvironment, self).__init__([(3, 3, 2)], 9)
     self.state = None
     self.terminated = None
     self.reset()
+    self.reward_rules_only(False)
+
+  def reward_rules_only(self, rules_only):
+    if rules_only:
+      self.ILLEGAL_MOVE_PENALTY = -1.0
+      self.LOSS_PENALTY = 0.0
+      self.NOT_LOSS = 1.0
+      self.DRAW_REWARD = 0.0
+      self.WIN_REWARD = 0.0
+    else:
+      self.ILLEGAL_MOVE_PENALTY = -3.1
+      self.LOSS_PENALTY = -3.0
+      self.NOT_LOSS = 0.1
+      self.DRAW_REWARD = 5.0
+      self.WIN_REWARD = 10.0
 
   def reset(self):
     self.terminated = False
@@ -68,7 +77,7 @@ class TicTacToeEnvironment(Environment):
     # Illegal move -- the square is not empty
     if not np.all(self.state[0][row][col] == TicTacToeEnvironment.EMPTY):
       self.terminated = True
-      return TicTacToeEnvironment.ILLEGAL_MOVE_PENALTY
+      return self.ILLEGAL_MOVE_PENALTY
 
     # Move X
     self.state[0][row][col] = TicTacToeEnvironment.X
@@ -76,11 +85,11 @@ class TicTacToeEnvironment(Environment):
     # Did X Win
     if self.check_winner(TicTacToeEnvironment.X):
       self.terminated = True
-      return TicTacToeEnvironment.WIN_REWARD
+      return self.WIN_REWARD
 
     if self.game_over():
       self.terminated = True
-      return TicTacToeEnvironment.DRAW_REWARD
+      return self.DRAW_REWARD
 
     move = self.get_O_move()
     self.state[0][move[0]][move[1]] = TicTacToeEnvironment.O
@@ -88,13 +97,13 @@ class TicTacToeEnvironment(Environment):
     # Did O Win
     if self.check_winner(TicTacToeEnvironment.O):
       self.terminated = True
-      return TicTacToeEnvironment.LOSS_PENALTY
+      return self.LOSS_PENALTY
 
     if self.game_over():
       self.terminated = True
-      return TicTacToeEnvironment.DRAW_REWARD
+      return self.DRAW_REWARD
 
-    return TicTacToeEnvironment.NOT_LOSS
+    return self.NOT_LOSS
 
   def get_O_move(self):
     empty_squares = []

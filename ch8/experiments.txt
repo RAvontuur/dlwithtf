@@ -87,3 +87,25 @@ Mean illegals at round 9 is 0.000000
 Mean losses at round 9 is 0.003580
 Mean draws at round 9 is 0.106300
 Mean wins at round 9 is 0.890120
+
+Experiment 4:
+- separate training game rules (random init)
+
+
+Mean reward at round 10 is 8.669300
+Mean illegals at round 10 is 0.006000
+Mean losses at round 10 is 0.042700
+Mean draws at round 10 is 0.139400
+Mean wins at round 10 is 0.811900
+[{200000: 0.0}, {400000: 0.0}, {600000: 0.0}, {800000: 0.0}, {1000000: 6.5203199999999999}, {1200000: 6.7326700000000015}, {1400000: 8.1892999999999994}, {1600000: 8.3815200000000001}, {1800000: 8.5936000000000003}, {2000000: 8.6692999999999998}]
+
+NOTE when training the rules, prob of valid actions differ too much :
+_X_
+___
+__O
+action: 6
+reward: 1.0
+probabilities: [[  3.65518034e-02   1.14165410e-09   4.34498349e-03   8.90629552e-03
+    1.23926185e-01   2.11532354e-01   3.55737090e-01   2.59001225e-01
+    2.45580996e-08]]
+value: [ 0.]

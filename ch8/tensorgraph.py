@@ -368,7 +368,7 @@ class Add(Layer):
     inputs = self._get_input_tensors(in_layers)
     out_tensor = self.constants[0] * inputs[0]
     for i in range(1, len(inputs)):
-      out_tensor = out_tensor + self.constants[1] * inputs[i]
+      out_tensor = out_tensor + self.constants[i] * inputs[i]
 
     self.out_tensor = out_tensor
     return out_tensor

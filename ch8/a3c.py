@@ -47,6 +47,11 @@ class A3CLoss(Layer):
     value_loss = tf.reduce_mean(tf.square(reward - value))
     entropy = -tf.reduce_mean(tf.reduce_sum(prob * log_prob, axis=1))
     self.out_tensor = policy_loss + self.value_weight * value_loss - self.entropy_weight * entropy
+    self.policy_loss = policy_loss
+    self.value_loss = value_loss
+    self.entropy = entropy
+    self.log_prob = tf.reduce_sum(action * log_prob, axis=1)
+    self.action = advantage
     return self.out_tensor
 
 
@@ -86,7 +91,9 @@ class A3C(object):
                value_weight=1.0,
                entropy_weight=0.01,
                optimizer=None,
-               model_dir=None):
+               learning_rate=0.001,
+               model_dir=None,
+               train_rules=True):
     """Create an object for optimizing a policy.
 
     Parameters
@@ -116,6 +123,9 @@ class A3C(object):
     self.value_weight = value_weight
     self.entropy_weight = entropy_weight
     self._optimizer = None
+    self.learning_rate = learning_rate
+    self.train_rules = train_rules
+    self.train_wins = (train_rules == False)
     (self._graph, self._features, self._rewards, self._actions,
      self._action_prob, self._value, self._advantages) = self.build_graph(
          None, "global", model_dir)
@@ -132,19 +142,22 @@ class A3C(object):
     d2 = Dense(
         in_layers=[d1],
         activation_fn=tf.nn.relu,
-        out_channels=72)
+        out_channels=72,
+        trainable=self.train_wins)
     d3 = Dense(
         in_layers=[d2],
         activation_fn=tf.nn.relu,
-        out_channels=36)
+        out_channels=36,
+        trainable=self.train_wins)
     d4 = Dense(
         in_layers=[d3],
         activation_fn=tf.nn.relu,
-        out_channels=18)
+        out_channels=18,
+        trainable=self.train_wins)
     d4 = BatchNorm(in_layers=[d4])
-    d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=9)
+    d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=9, trainable=self.train_wins)
 
-    tictactoe_rules_weights = tf.constant_initializer(10.0 * np.transpose(np.array(
+    tictactoe_rules_weights = tf.constant_initializer(12.0 * np.transpose(np.array(
       [[-1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
        [ 0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
        [ 0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
@@ -155,17 +168,22 @@ class A3C(object):
        [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0],
        [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1]])))
 
-    tictactoe_rules_biases = tf.constant_initializer(-10.0 * np.array(
+    tictactoe_rules_biases = tf.constant_initializer(6.0 * np.array(
       [1, 1, 1, 1, 1, 1, 1, 1, 1]))
 
     d2b = Dense(in_layers=[d1], activation_fn=None, out_channels=9,
-               biases_initializer=tictactoe_rules_biases,
-               weights_initializer=tictactoe_rules_weights,
-               trainable=False)
+               # biases_initializer=tictactoe_rules_biases,
+               # weights_initializer=tictactoe_rules_weights,
+               trainable=self.train_rules)
 
     value = Dense(in_layers=[d4], activation_fn=None, out_channels=1)
     value = Squeeze(squeeze_dims=1, in_layers=[value])
-    action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b], constants=[0.5, 0.5])])
+
+    if self.train_wins:
+      action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b], constants=[0.5, 0.5])])
+    else:
+      value = Add(in_layers=[value], constants=[0.0])
+      action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b], constants=[0.0, 0.5])])
 
     rewards = Input(shape=(None,))
     advantages = Input(shape=(None,))
@@ -175,6 +193,7 @@ class A3C(object):
         self.entropy_weight,
         in_layers=[rewards, actions, action_prob, value, advantages])
     graph = TensorGraph(
+        learning_rate=self.learning_rate,
         batch_size=self.max_rollout_length,
         graph=tf_graph,
         model_dir=model_dir)
@@ -216,6 +235,7 @@ class A3C(object):
       threads = []
       for i in range(multiprocessing.cpu_count()):
         workers.append(Worker(self, i))
+      # workers.append(Worker(self, 0))
       self._session.run(tf.global_variables_initializer())
 
       try:
@@ -282,14 +302,17 @@ class A3C(object):
     """
     with self._graph._get_tf("Graph").as_default():
       feed_dict = self.create_feed_dict(state)
-      tensors = [self._action_prob.out_tensor]
+      tensors = [self._action_prob.out_tensor,
+                 self._value.out_tensor]
       results = self._session.run(tensors, feed_dict=feed_dict)
       probabilities = results[0]
+      value = results[1]
       if deterministic:
-        return probabilities.argmax()
+        action = probabilities.argmax()
       else:
-        return np.random.choice(
+        action = np.random.choice(
             np.arange(self._env.n_actions), p=probabilities[0])
+      return action, probabilities, value
 
   def restore(self):
     """Reload the model parameters from the most recent checkpoint file."""
@@ -299,7 +322,14 @@ class A3C(object):
     with self._graph._get_tf("Graph").as_default():
       variables = tf.get_collection(
           tf.GraphKeys.GLOBAL_VARIABLES, scope="global")
-      saver = tf.train.Saver(variables)
+
+      variables_to_restore = []
+      for var in variables:
+        if 'Adam' in var.name:
+          continue
+        variables_to_restore.append(var)
+
+      saver = tf.train.Saver(variables_to_restore)
       saver.restore(self._session, last_checkpoint)
 
   def create_feed_dict(self, state):
@@ -362,7 +392,10 @@ class Worker(object):
           [self.action_prob.out_tensor, self.value.out_tensor],
           feed_dict=feed_dict)
       probabilities, value = results[:2]
+      # print("probabilities {}".format(probabilities))
       action = np.random.choice(np.arange(n_actions), p=probabilities[0])
+      # action = np.argmax(probabilities[0])
+      # print("action {}".format(action))
       actions.append(action)
       values.append(float(value))
       rewards.append(self.env.step(action))
@@ -398,6 +431,10 @@ class Worker(object):
       advantages[j-1] += (
           self.a3c.discount_factor * self.a3c.advantage_lambda * advantages[j])
 
+    # print("rewards {}".format(rewards))
+    # print("values {}".format(values))
+    # print("advantages {}".format(advantages))
+
     # Convert the actions to one-hot.
     n_actions = self.env.n_actions
     actions_matrix = []
@@ -420,8 +457,10 @@ class Worker(object):
     feed_dict[self.actions.out_tensor] = actions_matrix
     feed_dict[self.advantages.out_tensor] = advantages
     feed_dict[self.global_step] = step_count
-    self.a3c._session.run(self.train_op, feed_dict=feed_dict)
 
+    tensors = [self.train_op, self.graph.loss.out_tensor, self.graph.loss.policy_loss, self.graph.loss.value_loss, self.graph.loss.entropy, self.graph.loss.action, self.graph.loss.log_prob],
+    result = self.a3c._session.run(tensors, feed_dict=feed_dict)
+    # print(result)
   def create_feed_dict(self, state):
     """Create a feed dict for use during a rollout."""
     feed_dict = dict((f.out_tensor, np.expand_dims(s, axis=0))
