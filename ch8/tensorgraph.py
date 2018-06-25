@@ -231,6 +231,8 @@ class Dense(Layer):
       activation_fn=None,
       biases_initializer=tf.zeros_initializer,
       weights_initializer=None,
+      biases_regularizer=None,
+      weights_regularizer=None,
       trainable=True,
       **kwargs):
     """Create a dense layer.
@@ -258,6 +260,8 @@ class Dense(Layer):
     self.activation_fn = activation_fn
     self.biases_initializer = biases_initializer
     self.weights_initializer = weights_initializer
+    self.biases_regularizer = biases_regularizer
+    self.weights_regularizer = weights_regularizer
     self.trainable = trainable
 
   def create_tensor(self, in_layers=None, **kwargs):
@@ -280,6 +284,8 @@ class Dense(Layer):
                                                    activation_fn=self.activation_fn,
                                                    biases_initializer=biases_initializer,
                                                    weights_initializer=weights_initializer,
+                                                   biases_regularizer=self.biases_regularizer,
+                                                   weights_regularizer=self.weights_regularizer,
                                                    reuse=False,
                                                    trainable=self.trainable)
     self.out_tensor = out_tensor
@@ -360,8 +366,9 @@ class Input(Layer):
 
 class Add(Layer):
 
-  def __init__(self, in_layers=None, constants=None, **kwargs):
+  def __init__(self, in_layers=None, constants=None, bias=None, **kwargs):
     self.constants = constants
+    self.bias = bias
     super(Add, self).__init__(in_layers, **kwargs)
 
   def create_tensor(self, in_layers=None, **kwargs):
@@ -370,5 +377,24 @@ class Add(Layer):
     for i in range(1, len(inputs)):
       out_tensor = out_tensor + self.constants[i] * inputs[i]
 
+    if self.bias != None:
+      out_tensor = out_tensor + self.bias
+
+    self.out_tensor = out_tensor
+    return out_tensor
+
+class MaxValue(Layer):
+
+  def __init__(self, in_layers=None, **kwargs):
+    super(MaxValue, self).__init__(in_layers, **kwargs)
+
+  def create_tensor(self, in_layers=None, **kwargs):
+    inputs = self._get_input_tensors(in_layers)
+    input0 = inputs[0] # shape = (Nplays, 9)
+    indices = tf.argmax(input0, axis=1) # [...,tf.newaxis] # ==> [[i0][i0]..[iNplays-1]]
+    shape0 = tf.shape(indices)[0]   # ==> Nplays
+    shape_range = tf.range(shape0) # [...,tf.newaxis] # ==> [[0][1]...[Nplays-1]]
+    gather_indices = tf.stack([tf.to_int64(shape_range), indices], axis=1) # ==> [[0, i0][1, i1]..[Nplays-1, iNplays-1]]
+    out_tensor = tf.gather_nd(input0, gather_indices) # apply simple indexing into matrix input0
     self.out_tensor = out_tensor
     return out_tensor

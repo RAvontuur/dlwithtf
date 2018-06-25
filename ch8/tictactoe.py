@@ -34,15 +34,15 @@ def eval_tic_tac_toe():
   for j in range(num_epoch_rounds):
     print("Epoch round: %d" % j)
 
-    learning_rates=[0.01,0.01,0.01,0.01,0.0001,0.0001,0.0001,0.0001,0.0001,0.0001]
+    learning_rates=[0.01,0.01,0.01,0.01,0.001,0.001,0.001,0.001,0.001,0.001]
     if j < 4:
-        games=10**4
+        games=10**3
         rollouts=2*10**5
         train_rules=True
-        value_weight=0.0
+        value_weight=0.2
         entropy_weight=0.0
         advantage_lambda=0.0
-        discount_factor=0.99
+        discount_factor=0.0
         env.reward_rules_only(True)
     else:
         games=10**4
@@ -51,7 +51,7 @@ def eval_tic_tac_toe():
         value_weight=1.0
         entropy_weight=0.01
         advantage_lambda=0.5
-        discount_factor=0.99
+        discount_factor=0.5
         env.reward_rules_only(False)
 
     a3c_engine = A3C(
@@ -81,11 +81,11 @@ def eval_tic_tac_toe():
             action, probabilities, value = a3c_engine.select_action(env.state, deterministic=True)
             reward = env.step(action)
             if i < 10:
-                print('action: {}'.format(action))
-                print('reward: {}'.format(reward))
+                # print('action: {}'.format(action))
+                # print('reward: {}'.format(reward))
                 print('probabilities: {}'.format(probabilities))
-                print('value: {}'.format(value))
-                print(env.display())
+                # print('value: {}'.format(value))
+                # print(env.display())
 
         rewards.append(reward)
         if abs(reward - env.ILLEGAL_MOVE_PENALTY) < 0.001:

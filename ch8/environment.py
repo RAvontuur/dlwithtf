@@ -48,11 +48,11 @@ class TicTacToeEnvironment(Environment):
 
   def reward_rules_only(self, rules_only):
     if rules_only:
-      self.ILLEGAL_MOVE_PENALTY = -1.0
-      self.LOSS_PENALTY = 0.0
-      self.NOT_LOSS = 1.0
-      self.DRAW_REWARD = 0.0
-      self.WIN_REWARD = 0.0
+      self.ILLEGAL_MOVE_PENALTY = -6.0
+      self.LOSS_PENALTY = 6.0
+      self.NOT_LOSS = 6.0
+      self.DRAW_REWARD = 6.0
+      self.WIN_REWARD = 6.0
     else:
       self.ILLEGAL_MOVE_PENALTY = -3.1
       self.LOSS_PENALTY = -3.0

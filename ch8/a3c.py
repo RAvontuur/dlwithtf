@@ -26,6 +26,7 @@ from tensorgraph import BatchNorm
 from tensorgraph import SoftMax
 from tensorgraph import Input
 from tensorgraph import Add
+from tensorgraph import MaxValue
 
 
 class A3CLoss(Layer):
@@ -50,8 +51,8 @@ class A3CLoss(Layer):
     self.policy_loss = policy_loss
     self.value_loss = value_loss
     self.entropy = entropy
-    self.log_prob = tf.reduce_sum(action * log_prob, axis=1)
-    self.action = advantage
+    self.action = value
+    self.log_prob = reward
     return self.out_tensor
 
 
@@ -174,6 +175,8 @@ class A3C(object):
     d2b = Dense(in_layers=[d1], activation_fn=None, out_channels=9,
                # biases_initializer=tictactoe_rules_biases,
                # weights_initializer=tictactoe_rules_weights,
+               # weights_regularizer = tf.nn.l2_loss,
+               # biases_regularizer = tf.nn.l2_loss,
                trainable=self.train_rules)
 
     value = Dense(in_layers=[d4], activation_fn=None, out_channels=1)
@@ -182,7 +185,7 @@ class A3C(object):
     if self.train_wins:
       action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b], constants=[0.5, 0.5])])
     else:
-      value = Add(in_layers=[value], constants=[0.0])
+      value = Add(in_layers=[value, MaxValue(in_layers=d2b)], constants=[0.0, 1.0])
       action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b], constants=[0.0, 0.5])])
 
     rewards = Input(shape=(None,))
@@ -396,6 +399,7 @@ class Worker(object):
       action = np.random.choice(np.arange(n_actions), p=probabilities[0])
       # action = np.argmax(probabilities[0])
       # print("action {}".format(action))
+      # print("value {}".format(value))
       actions.append(action)
       values.append(float(value))
       rewards.append(self.env.step(action))
@@ -431,7 +435,10 @@ class Worker(object):
       advantages[j-1] += (
           self.a3c.discount_factor * self.a3c.advantage_lambda * advantages[j])
 
+    # print("---")
+    # print("actions {}".format(actions))
     # print("rewards {}".format(rewards))
+    # print("discounted rewards {}".format(discounted_rewards))
     # print("values {}".format(values))
     # print("advantages {}".format(advantages))
 
