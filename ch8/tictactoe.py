@@ -34,16 +34,17 @@ def eval_tic_tac_toe():
   for j in range(num_epoch_rounds):
     print("Epoch round: %d" % j)
 
-    learning_rates=[0.01,0.01,0.01,0.01,0.001,0.001,0.001,0.001,0.001,0.001]
+    learning_rates=[0.01,0.01,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001]
     if j < 4:
         games=10**3
-        rollouts=2*10**5
+        rollouts=2*10**4
         train_rules=True
-        value_weight=0.2
+        value_weight=1.0
         entropy_weight=0.0
         advantage_lambda=0.0
         discount_factor=0.0
         env.reward_rules_only(True)
+        random_train=True
     else:
         games=10**4
         rollouts=2*10**5
@@ -53,6 +54,7 @@ def eval_tic_tac_toe():
         advantage_lambda=0.5
         discount_factor=0.5
         env.reward_rules_only(False)
+        random_train=False
 
     a3c_engine = A3C(
         env,
@@ -62,7 +64,8 @@ def eval_tic_tac_toe():
         model_dir=model_dir,
         learning_rate=learning_rates[j],
         advantage_lambda=advantage_lambda,
-        train_rules= train_rules
+        train_rules= train_rules,
+        random_train = random_train
         )
 
     a3c_engine.fit(rollouts, restore=True)
@@ -80,10 +83,10 @@ def eval_tic_tac_toe():
         while not env.terminated:
             action, probabilities, value = a3c_engine.select_action(env.state, deterministic=True)
             reward = env.step(action)
-            if i < 10:
+           # if i < 10:
                 # print('action: {}'.format(action))
                 # print('reward: {}'.format(reward))
-                print('probabilities: {}'.format(probabilities))
+                # print('probabilities: {}'.format(probabilities))
                 # print('value: {}'.format(value))
                 # print(env.display())
 

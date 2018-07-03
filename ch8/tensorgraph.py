@@ -383,6 +383,23 @@ class Add(Layer):
     self.out_tensor = out_tensor
     return out_tensor
 
+class Scale(Layer):
+
+  def __init__(self, in_layers=None, initial_value=1.0, trainable=True, **kwargs):
+    self.initial_value=initial_value
+    self.trainable=trainable
+    super(Scale, self).__init__(in_layers, **kwargs)
+
+  def create_tensor(self, in_layers=None, **kwargs):
+    inputs = self._get_input_tensors(in_layers)
+
+    scale_weight = tf.Variable(initial_value=self.initial_value,name="scale_weight",trainable=self.trainable)
+
+    out_tensor = scale_weight * inputs[0]
+    self.out_tensor = out_tensor
+    return out_tensor
+
+
 class MaxValue(Layer):
 
   def __init__(self, in_layers=None, **kwargs):

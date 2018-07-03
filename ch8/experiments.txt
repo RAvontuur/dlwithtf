@@ -109,3 +109,34 @@ probabilities: [[  3.65518034e-02   1.14165410e-09   4.34498349e-03   8.90629552
     1.23926185e-01   2.11532354e-01   3.55737090e-01   2.59001225e-01
     2.45580996e-08]]
 value: [ 0.]
+
+
+with training the rules:
+using: log_prob = tf.log(0.001 + 0.999 * prob) + scale-factor
+    learning_rates=[0.01,0.01,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001]
+    if j < 4:
+        games=10**3
+        rollouts=2*10**4
+        train_rules=True
+        value_weight=1.0
+        entropy_weight=0.0
+        advantage_lambda=0.0
+        discount_factor=0.0
+        env.reward_rules_only(True)
+        random_train=True
+    else:
+        games=10**4
+        rollouts=2*10**5
+        train_rules=False
+        value_weight=1.0
+        entropy_weight=0.01
+        advantage_lambda=0.5
+        discount_factor=0.5
+        env.reward_rules_only(False)
+        random_train=False
+
+Mean reward at round 8 is 9.433800
+Mean illegals at round 8 is 0.000000
+Mean losses at round 8 is 0.008900
+Mean draws at round 8 is 0.090100
+Mean wins at round 8 is 0.901000

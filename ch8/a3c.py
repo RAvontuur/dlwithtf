@@ -26,6 +26,7 @@ from tensorgraph import BatchNorm
 from tensorgraph import SoftMax
 from tensorgraph import Input
 from tensorgraph import Add
+from tensorgraph import Scale
 from tensorgraph import MaxValue
 
 
@@ -41,8 +42,9 @@ class A3CLoss(Layer):
     reward, action, prob, value, advantage = [
         layer.out_tensor for layer in self.in_layers
     ]
-    prob = prob + np.finfo(np.float32).eps
-    log_prob = tf.log(prob)
+    # prob = prob + np.finfo(np.float32).eps
+    # log_prob = tf.log(prob)
+    log_prob = tf.log(0.001 + 0.999 * prob)
     policy_loss = -tf.reduce_mean(
         advantage * tf.reduce_sum(action * log_prob, axis=1))
     value_loss = tf.reduce_mean(tf.square(reward - value))
@@ -94,7 +96,8 @@ class A3C(object):
                optimizer=None,
                learning_rate=0.001,
                model_dir=None,
-               train_rules=True):
+               train_rules=True,
+               random_train=True):
     """Create an object for optimizing a policy.
 
     Parameters
@@ -127,6 +130,7 @@ class A3C(object):
     self.learning_rate = learning_rate
     self.train_rules = train_rules
     self.train_wins = (train_rules == False)
+    self.random_train = random_train
     (self._graph, self._features, self._rewards, self._actions,
      self._action_prob, self._value, self._advantages) = self.build_graph(
          None, "global", model_dir)
@@ -183,10 +187,12 @@ class A3C(object):
     value = Squeeze(squeeze_dims=1, in_layers=[value])
 
     if self.train_wins:
-      action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b], constants=[0.5, 0.5])])
+      d2b_scaled = Scale(in_layers=[d2b], initial_value=1.0, trainable=False)
+      action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b_scaled], constants=[0.5, 0.5])])
     else:
       value = Add(in_layers=[value, MaxValue(in_layers=d2b)], constants=[0.0, 1.0])
-      action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b], constants=[0.0, 0.5])])
+      d2b_scaled = Scale(in_layers=[d2b], initial_value=1.0)
+      action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b_scaled], constants=[0.0, 0.5])])
 
     rewards = Input(shape=(None,))
     advantages = Input(shape=(None,))
@@ -241,12 +247,10 @@ class A3C(object):
       # workers.append(Worker(self, 0))
       self._session.run(tf.global_variables_initializer())
 
-      try:
-        if restore:
+      # try:
+      if restore:
           self.restore()
-      except:
-        print("unable to restore")
-        pass
+
 
       for worker in workers:
         thread = threading.Thread(
@@ -318,22 +322,40 @@ class A3C(object):
       return action, probabilities, value
 
   def restore(self):
-    """Reload the model parameters from the most recent checkpoint file."""
-    last_checkpoint = tf.train.latest_checkpoint(self._graph.model_dir)
-    if last_checkpoint is None:
-      raise ValueError("No checkpoint found")
-    with self._graph._get_tf("Graph").as_default():
-      variables = tf.get_collection(
+    try:
+      """Reload the model parameters from the most recent checkpoint file."""
+      last_checkpoint = tf.train.latest_checkpoint(self._graph.model_dir)
+      if last_checkpoint is None:
+        raise ValueError("No checkpoint found")
+      with self._graph._get_tf("Graph").as_default():
+        variables = tf.get_collection(
           tf.GraphKeys.GLOBAL_VARIABLES, scope="global")
 
-      variables_to_restore = []
-      for var in variables:
-        if 'Adam' in var.name:
-          continue
-        variables_to_restore.append(var)
+        variables_to_restore = []
+        for var in variables:
+          # print('var:{}'.format(var))
+          if 'Adam' in var.name:
+            continue
+          if 'fully_connected_4/biases' in var.name:
+            b = var
+          if 'fully_connected_4/weights' in var.name:
+            w = var
+          if 'scale_weight' in var.name:
+            s = var
+          variables_to_restore.append(var)
 
-      saver = tf.train.Saver(variables_to_restore)
-      saver.restore(self._session, last_checkpoint)
+
+        saver = tf.train.Saver(variables_to_restore)
+        saver.restore(self._session, last_checkpoint)
+    except:
+      print("unable to restore")
+      pass
+      return
+
+      # <tf.Variable 'global/fully_connected_4/weights:0' shape=(18, 9) dtype=float32_ref>
+    print(self._session.run(w))
+    print(self._session.run(b))
+    print(self._session.run(s))
 
   def create_feed_dict(self, state):
     """Create a feed dict for use by predict() or select_action()."""
@@ -396,7 +418,10 @@ class Worker(object):
           feed_dict=feed_dict)
       probabilities, value = results[:2]
       # print("probabilities {}".format(probabilities))
-      action = np.random.choice(np.arange(n_actions), p=probabilities[0])
+      if self.a3c.random_train:
+        action = np.random.choice(np.arange(n_actions))
+      else:
+        action = np.random.choice(np.arange(n_actions), p=probabilities[0])
       # action = np.argmax(probabilities[0])
       # print("action {}".format(action))
       # print("value {}".format(value))
