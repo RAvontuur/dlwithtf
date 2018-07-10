@@ -160,7 +160,7 @@ class A3C(object):
         out_channels=18,
         trainable=self.train_wins)
     d4 = BatchNorm(in_layers=[d4])
-    d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=9, trainable=self.train_wins)
+    d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=7, trainable=self.train_wins)
 
     tictactoe_rules_weights = tf.constant_initializer(12.0 * np.transpose(np.array(
       [[-1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
@@ -176,7 +176,7 @@ class A3C(object):
     tictactoe_rules_biases = tf.constant_initializer(6.0 * np.array(
       [1, 1, 1, 1, 1, 1, 1, 1, 1]))
 
-    d2b = Dense(in_layers=[d1], activation_fn=None, out_channels=9,
+    d2b = Dense(in_layers=[d1], activation_fn=None, out_channels=7,
                # biases_initializer=tictactoe_rules_biases,
                # weights_initializer=tictactoe_rules_weights,
                # weights_regularizer = tf.nn.l2_loss,

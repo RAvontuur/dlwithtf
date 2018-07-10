@@ -31,16 +31,16 @@ class Environment(object):
       self.state_dtype = state_dtype
 
 
-class TicTacToeEnvironment(Environment):
+class ConnectFourEnvironment(Environment):
   """
-  Play tictactoe against a randomly acting opponent
+  Play Connect Four against a randomly acting opponent
   """
   X = np.array([1.0, 0.0])
   O = np.array([0.0, 1.0])
   EMPTY = np.array([0.0, 0.0])
 
   def __init__(self):
-    super(TicTacToeEnvironment, self).__init__([(3, 3, 2)], 9)
+    super(ConnectFourEnvironment, self).__init__([(7, 6, 2)], 7)
     self.state = None
     self.terminated = None
     self.reset()
@@ -62,28 +62,29 @@ class TicTacToeEnvironment(Environment):
 
   def reset(self):
     self.terminated = False
-    self.state = [np.zeros(shape=(3, 3, 2), dtype=np.float32)]
+    self.state = [np.zeros(shape=(7, 6, 2), dtype=np.float32)]
 
     # Randomize who goes first
     if random.randint(0, 1) == 1:
-      move = self.get_O_move()
-      self.state[0][move[0]][move[1]] = TicTacToeEnvironment.O
+      action_O = self.get_O_action()
+      self.state[0][action_O][0] = ConnectFourEnvironment.O
 
-  def step(self, action):
+  def step(self, action_X):
     self.state = copy.deepcopy(self.state)
-    row = action // 3
-    col = action % 3
 
-    # Illegal move -- the square is not empty
-    if not np.all(self.state[0][row][col] == TicTacToeEnvironment.EMPTY):
+    # Illegal move -- too high stack of squares
+    if not np.all(self.state[0][action_X][5] == ConnectFourEnvironment.EMPTY):
       self.terminated = True
       return self.ILLEGAL_MOVE_PENALTY
 
     # Move X
-    self.state[0][row][col] = TicTacToeEnvironment.X
+    for row in range(6):
+      if np.all(self.state[0][action_X][row] == ConnectFourEnvironment.EMPTY):
+        self.state[0][action_X][row]= ConnectFourEnvironment.X
+        break
 
     # Did X Win
-    if self.check_winner(TicTacToeEnvironment.X):
+    if self.check_winner(ConnectFourEnvironment.X, action_X):
       self.terminated = True
       return self.WIN_REWARD
 
@@ -91,11 +92,15 @@ class TicTacToeEnvironment(Environment):
       self.terminated = True
       return self.DRAW_REWARD
 
-    move = self.get_O_move()
-    self.state[0][move[0]][move[1]] = TicTacToeEnvironment.O
+    action_O = self.get_O_action()
+
+    for row in range(6):
+      if np.all(self.state[0][action_O][row] == ConnectFourEnvironment.EMPTY):
+        self.state[0][action_O][row]= ConnectFourEnvironment.O
+        break
 
     # Did O Win
-    if self.check_winner(TicTacToeEnvironment.O):
+    if self.check_winner(ConnectFourEnvironment.O, action_O):
       self.terminated = True
       return self.LOSS_PENALTY
 
@@ -105,48 +110,131 @@ class TicTacToeEnvironment(Environment):
 
     return self.NOT_LOSS
 
-  def get_O_move(self):
-    empty_squares = []
-    for row in range(3):
-      for col in range(3):
-        if np.all(self.state[0][row][col] == TicTacToeEnvironment.EMPTY):
-          empty_squares.append((row, col))
-    return random.choice(empty_squares)
+  def get_O_action(self):
+    free_columns = []
+    for col in range(7):
+        if np.all(self.state[0][col][5] == ConnectFourEnvironment.EMPTY):
+          free_columns.append(col)
+    return random.choice(free_columns)
 
-  def check_winner(self, player):
-    for i in range(3):
-      row = np.sum(self.state[0][i][:], axis=0)
-      if np.all(row == player * 3):
-        return True
-      col = np.sum(self.state[0][:][i], axis=0)
-      if np.all(col == player * 3):
-        return True
+  def check_winner(self, player, action):
 
-    diag1 = self.state[0][0][0] + self.state[0][1][1] + self.state[0][2][2]
-    if np.all(diag1 == player * 3):
+    for row in range(6):
+      if np.all(self.state[0][action][5-row] == player):
+        action_row = 5-row
+        break
+
+    left = 0
+    right = 0
+    up = 0
+    down = 0
+    left_up = 0
+    left_down = 0
+    right_up = 0
+    right_down = 0
+
+    col = action - 1
+    while col >= 0:
+      if np.all(self.state[0][col][action_row] == player):
+        left = left + 1
+        col = col - 1
+      else:
+        break
+
+    col = action + 1
+    while col <= 6:
+      if np.all(self.state[0][col][action_row] == player):
+        right = right + 1
+        col = col + 1
+      else:
+        break
+
+    row = action_row - 1
+    while row >= 0:
+      if np.all(self.state[0][action][row] == player):
+        down = down + 1
+        row = row - 1
+      else:
+        break
+
+    row = action_row + 1
+    while row <= 5:
+      if np.all(self.state[0][action][row] == player):
+        up = up + 1
+        row = row + 1
+      else:
+        break
+
+    col = action - 1
+    row = action_row - 1
+    while row >= 0 and col >= 0:
+      if np.all(self.state[0][col][row] == player):
+        left_down = left_down + 1
+        col = col - 1
+        row = row - 1
+      else:
+        break
+
+    col = action + 1
+    row = action_row + 1
+    while row <= 5 and col <= 6:
+      if np.all(self.state[0][col][row] == player):
+        right_up = right_up + 1
+        col = col + 1
+        row = row + 1
+      else:
+        break
+
+    col = action - 1
+    row = action_row + 1
+    while row <= 5 and col >= 0:
+      if np.all(self.state[0][col][row] == player):
+        left_up = left_up + 1
+        col = col - 1
+        row = row + 1
+      else:
+        break
+
+    col = action + 1
+    row = action_row - 1
+    while row >= 0 and col <= 6:
+      if np.all(self.state[0][col][row] == player):
+        right_down = right_down + 1
+        col = col + 1
+        row = row - 1
+      else:
+        break
+
+    if left + right + 1 >= 4:
       return True
-    diag2 = self.state[0][0][2] + self.state[0][1][1] + self.state[0][2][0]
-    if np.all(diag2 == player * 3):
+
+    if up + down + 1 >= 4:
       return True
+
+    if left_up + right_down + 1 >= 4:
+      return True
+
+    if left_down + right_up + 1 >= 4:
+      return True
+
     return False
 
   def game_over(self):
-    for i in range(3):
-      for j in range(3):
-        if np.all(self.state[0][i][j] == TicTacToeEnvironment.EMPTY):
-          return False
+    for col in range(7):
+      if np.all(self.state[0][col][5] == ConnectFourEnvironment.EMPTY):
+        return False
     return True
 
   def display(self):
     state = self.state[0]
     s = ""
-    for row in range(3):
-      for col in range(3):
-        if np.all(state[row][col] == TicTacToeEnvironment.EMPTY):
+    for row in range(6):
+      for col in range(7):
+        if np.all(state[col][5-row] == ConnectFourEnvironment.EMPTY):
           s += "_"
-        if np.all(state[row][col] == TicTacToeEnvironment.X):
+        if np.all(state[col][5-row] == ConnectFourEnvironment.X):
           s += "X"
-        if np.all(state[row][col] == TicTacToeEnvironment.O):
+        if np.all(state[col][5-row] == ConnectFourEnvironment.O):
           s += "O"
       s += "\n"
     return s

@@ -6,7 +6,7 @@ import shutil
 import numpy as np
 import tensorflow as tf
 import deepchem as dc
-from environment import TicTacToeEnvironment
+from environment import ConnectFourEnvironment
 from a3c import A3C
 
 
@@ -22,7 +22,7 @@ def eval_tic_tac_toe():
   ------- 
   avg_rewards
   """
-  env = TicTacToeEnvironment()
+  env = ConnectFourEnvironment()
   model_dir = "/tmp/tictactoe"
   try:
     shutil.rmtree(model_dir)
@@ -30,20 +30,20 @@ def eval_tic_tac_toe():
     pass
 
   avg_rewards = []
-  num_epoch_rounds=10
+  num_epoch_rounds=1
   for j in range(num_epoch_rounds):
     print("Epoch round: %d" % j)
 
     learning_rates=[0.01,0.01,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001]
     if j < 4:
-        games=10**3
-        rollouts=2*10**4
+        games=20
+        rollouts=1
         train_rules=True
         value_weight=1.0
         entropy_weight=0.0
         advantage_lambda=0.0
         discount_factor=0.0
-        env.reward_rules_only(True)
+        env.reward_rules_only(False)
         random_train=True
     else:
         games=10**4
@@ -83,12 +83,12 @@ def eval_tic_tac_toe():
         while not env.terminated:
             action, probabilities, value = a3c_engine.select_action(env.state, deterministic=True)
             reward = env.step(action)
-           # if i < 10:
-                # print('action: {}'.format(action))
-                # print('reward: {}'.format(reward))
-                # print('probabilities: {}'.format(probabilities))
-                # print('value: {}'.format(value))
-                # print(env.display())
+            if i < 10:
+                print('action: {}'.format(action))
+                print('reward: {}'.format(reward))
+                print('probabilities: {}'.format(probabilities))
+                print('value: {}'.format(value))
+                print(env.display())
 
         rewards.append(reward)
         if abs(reward - env.ILLEGAL_MOVE_PENALTY) < 0.001:
