@@ -88,7 +88,7 @@ class A3C(object):
 
   def __init__(self,
                env,
-               max_rollout_length=20,
+               max_rollout_length=50,
                discount_factor=0.99,
                advantage_lambda=0.98,
                value_weight=1.0,
@@ -147,52 +147,39 @@ class A3C(object):
     d2 = Dense(
         in_layers=[d1],
         activation_fn=tf.nn.relu,
-        out_channels=72,
+        out_channels=336,
         trainable=self.train_wins)
     d3 = Dense(
         in_layers=[d2],
         activation_fn=tf.nn.relu,
-        out_channels=36,
+        out_channels=168,
         trainable=self.train_wins)
     d4 = Dense(
         in_layers=[d3],
         activation_fn=tf.nn.relu,
-        out_channels=18,
+        out_channels=84,
         trainable=self.train_wins)
     d4 = BatchNorm(in_layers=[d4])
     d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=7, trainable=self.train_wins)
 
-    tictactoe_rules_weights = tf.constant_initializer(12.0 * np.transpose(np.array(
-      [[-1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
-       [ 0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
-       [ 0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
-       [ 0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
-       [ 0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0,  0,  0],
-       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0,  0,  0],
-       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0,  0,  0],
-       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1,  0,  0],
-       [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -1, -1]])))
-
-    tictactoe_rules_biases = tf.constant_initializer(6.0 * np.array(
-      [1, 1, 1, 1, 1, 1, 1, 1, 1]))
-
-    d2b = Dense(in_layers=[d1], activation_fn=None, out_channels=7,
-               # biases_initializer=tictactoe_rules_biases,
-               # weights_initializer=tictactoe_rules_weights,
-               # weights_regularizer = tf.nn.l2_loss,
-               # biases_regularizer = tf.nn.l2_loss,
-               trainable=self.train_rules)
+    # d2b = Dense(in_layers=[d1], activation_fn=None, out_channels=7,
+    #            # biases_initializer=tictactoe_rules_biases,
+    #            # weights_initializer=tictactoe_rules_weights,
+    #            # weights_regularizer = tf.nn.l2_loss,
+    #            # biases_regularizer = tf.nn.l2_loss,
+    #            trainable=self.train_rules)
 
     value = Dense(in_layers=[d4], activation_fn=None, out_channels=1)
     value = Squeeze(squeeze_dims=1, in_layers=[value])
 
-    if self.train_wins:
-      d2b_scaled = Scale(in_layers=[d2b], initial_value=1.0, trainable=False)
-      action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b_scaled], constants=[0.5, 0.5])])
-    else:
-      value = Add(in_layers=[value, MaxValue(in_layers=d2b)], constants=[0.0, 1.0])
-      d2b_scaled = Scale(in_layers=[d2b], initial_value=1.0)
-      action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b_scaled], constants=[0.0, 0.5])])
+    action_prob = SoftMax(d5)
+    # if self.train_wins:
+    #   d2b_scaled = Scale(in_layers=[d2b], initial_value=1.0, trainable=False)
+    #   action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b_scaled], constants=[0.5, 0.5])])
+    # else:
+    #   value = Add(in_layers=[value, MaxValue(in_layers=d2b)], constants=[0.0, 1.0])
+    #   d2b_scaled = Scale(in_layers=[d2b], initial_value=1.0)
+    #   action_prob = SoftMax(in_layers=[Add(in_layers=[d5, d2b_scaled], constants=[0.0, 0.5])])
 
     rewards = Input(shape=(None,))
     advantages = Input(shape=(None,))
@@ -353,9 +340,9 @@ class A3C(object):
       return
 
       # <tf.Variable 'global/fully_connected_4/weights:0' shape=(18, 9) dtype=float32_ref>
-    print(self._session.run(w))
-    print(self._session.run(b))
-    print(self._session.run(s))
+    # print(self._session.run(w))
+    # print(self._session.run(b))
+    # print(self._session.run(s))
 
   def create_feed_dict(self, state):
     """Create a feed dict for use by predict() or select_action()."""

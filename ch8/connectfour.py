@@ -30,31 +30,31 @@ def eval_tic_tac_toe():
     pass
 
   avg_rewards = []
-  num_epoch_rounds=1
+  num_epoch_rounds=10
   for j in range(num_epoch_rounds):
     print("Epoch round: %d" % j)
 
-    learning_rates=[0.01,0.01,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001]
-    if j < 4:
-        games=20
-        rollouts=1
-        train_rules=True
-        value_weight=1.0
-        entropy_weight=0.0
-        advantage_lambda=0.0
-        discount_factor=0.0
-        env.reward_rules_only(False)
-        random_train=True
-    else:
-        games=10**4
-        rollouts=2*10**5
-        train_rules=False
-        value_weight=1.0
-        entropy_weight=0.01
-        advantage_lambda=0.5
-        discount_factor=0.5
-        env.reward_rules_only(False)
-        random_train=False
+    learning_rates=[0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001]
+    # if j < 4:
+    #     games=10**3
+    #     rollouts=2*10**4
+    #     train_rules=True
+    #     value_weight=1.0
+    #     entropy_weight=0.0
+    #     advantage_lambda=0.0
+    #     discount_factor=0.0
+    #     env.reward_rules_only(True)
+    #     random_train=True
+    # else:
+    games=10**4
+    rollouts=2*10**5
+    train_rules=False
+    value_weight=1.0
+    entropy_weight=0.01
+    advantage_lambda=0.5
+    discount_factor=0.5
+    env.reward_rules_only(False)
+    random_train=False
 
     a3c_engine = A3C(
         env,
