@@ -66,8 +66,7 @@ class ConnectFourEnvironment(Environment):
 
     # Randomize who goes first
     if random.randint(0, 1) == 1:
-      action_O = self.get_O_action()
-      self.state[0][action_O][0] = ConnectFourEnvironment.O
+      self.make_O_action()
 
   def step(self, action_X):
     self.state = copy.deepcopy(self.state)
@@ -77,11 +76,7 @@ class ConnectFourEnvironment(Environment):
       self.terminated = True
       return self.ILLEGAL_MOVE_PENALTY
 
-    # Move X
-    for row in range(6):
-      if np.all(self.state[0][action_X][row] == ConnectFourEnvironment.EMPTY):
-        self.state[0][action_X][row]= ConnectFourEnvironment.X
-        break
+    self.apply_move(ConnectFourEnvironment.X, action_X)
 
     # Did X Win
     if self.check_winner(ConnectFourEnvironment.X, action_X):
@@ -92,12 +87,7 @@ class ConnectFourEnvironment(Environment):
       self.terminated = True
       return self.DRAW_REWARD
 
-    action_O = self.get_O_action()
-
-    for row in range(6):
-      if np.all(self.state[0][action_O][row] == ConnectFourEnvironment.EMPTY):
-        self.state[0][action_O][row]= ConnectFourEnvironment.O
-        break
+    action_O = self.make_O_action()
 
     # Did O Win
     if self.check_winner(ConnectFourEnvironment.O, action_O):
@@ -110,12 +100,46 @@ class ConnectFourEnvironment(Environment):
 
     return self.NOT_LOSS
 
-  def get_O_action(self):
+  def make_O_action(self):
     free_columns = []
     for col in range(7):
         if np.all(self.state[0][col][5] == ConnectFourEnvironment.EMPTY):
           free_columns.append(col)
-    return random.choice(free_columns)
+
+    # try to find winning move
+    for action_O in free_columns:
+      self.apply_move(ConnectFourEnvironment.O, action_O)
+      if self.check_winner(ConnectFourEnvironment.O, action_O):
+        return action_O
+      self.cancel_move(ConnectFourEnvironment.O, action_O)
+
+    # prevent opponent making a connect four
+    for action_T in free_columns:
+      self.apply_move(ConnectFourEnvironment.X, action_T)
+      prevent_win = self.check_winner(ConnectFourEnvironment.X, action_T)
+      self.cancel_move(ConnectFourEnvironment.X, action_T)
+      if prevent_win:
+        self.apply_move(ConnectFourEnvironment.O, action_T)
+        return action_T
+
+    action_O = random.choice(free_columns)
+    self.apply_move(ConnectFourEnvironment.O, action_O)
+    return action_O
+
+  def apply_move(self, player, action):
+    for row in range(6):
+      if np.all(self.state[0][action][row] == ConnectFourEnvironment.EMPTY):
+        self.state[0][action][row]=player
+        break
+
+  def cancel_move(self, player, action):
+    for row in range(6):
+      # print('cancelling {}'.format(row))
+      if np.all(self.state[0][action][5 - row] == player):
+        self.state[0][action][5 - row] = ConnectFourEnvironment.EMPTY
+        # print('canceled, col {} row {} '.format(action, 5 - row))
+        break
+
 
   def check_winner(self, player, action):
 
