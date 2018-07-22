@@ -34,7 +34,7 @@ def eval_tic_tac_toe():
   for j in range(num_epoch_rounds):
     print("Epoch round: %d" % j)
 
-    learning_rates=[0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001]
+    learning_rates=[0.001,0.001,0.0005,0.0002,0.0002,0.0001,0.0001,0.0001,0.0001,0.0001]
     # if j < 4:
     #     games=10**3
     #     rollouts=2*10**4
@@ -46,14 +46,16 @@ def eval_tic_tac_toe():
     #     env.reward_rules_only(True)
     #     random_train=True
     # else:
-    games=10**4
+    games=10**2
+
     rollouts=2*10**5
     train_rules=False
     value_weight=1.0
-    entropy_weight=0.01
+    entropy_weight=0.05
     advantage_lambda=0.5
-    discount_factor=0.5
+    discount_factor=0.8
     env.reward_rules_only(False)
+    env.set_play_level(100)
     random_train=False
 
     a3c_engine = A3C(
@@ -72,52 +74,58 @@ def eval_tic_tac_toe():
 
     # validation run
     # env.reward_rules_only(False)
-    rewards = []
-    illegals = []
-    losses = []
-    draws = []
-    wins = []
-    for i in range(games):
-        env.reset()
-        reward = -float('inf')
-        while not env.terminated:
-            action, probabilities, value = a3c_engine.select_action(env.state, deterministic=True)
-            reward = env.step(action)
-            if i < 10:
-                print('action: {}'.format(action))
-                print('reward: {}'.format(reward))
-                print('probabilities: {}'.format(probabilities))
-                print('value: {}'.format(value))
-                print(env.display())
 
-        rewards.append(reward)
-        if abs(reward - env.ILLEGAL_MOVE_PENALTY) < 0.001:
-            illegals.append(1.0)
-        else:
-            illegals.append(0.0)
+    print_example_plays = False
 
-        if abs(reward - env.LOSS_PENALTY) < 0.001:
-            losses.append(1.0)
-        else:
-            losses.append(0.0)
+    for play_level in range(3):
+        env.set_play_level(play_level)
+        rewards = []
+        illegals = []
+        losses = []
+        draws = []
+        wins = []
+        for i in range(games):
+            env.reset()
+            reward = -float('inf')
+            while not env.terminated:
+                action, probabilities, value = a3c_engine.select_action(env.state, deterministic=True)
+                reward = env.step(action)
+                if print_example_plays and (i < 10):
+                    print('action: {}'.format(action))
+                    print('reward: {}'.format(reward))
+                    print('probabilities: {}'.format(probabilities))
+                    print('value: {}'.format(value))
+                    print(env.display())
 
-        if abs(reward - env.DRAW_REWARD) < 0.001:
-            draws.append(1.0)
-        else:
-            draws.append(0.0)
+            rewards.append(reward)
+            if abs(reward - env.ILLEGAL_MOVE_PENALTY) < 0.001:
+                illegals.append(1.0)
+            else:
+                illegals.append(0.0)
 
-        if abs(reward - env.WIN_REWARD) < 0.001:
-            wins.append(1.0)
-        else:
-            wins.append(0.0)
+            if abs(reward - env.LOSS_PENALTY) < 0.001:
+                losses.append(1.0)
+            else:
+                losses.append(0.0)
 
-    print("Mean reward at round %d is %f" % (j + 1, np.mean(rewards)))
-    print("Mean illegals at round %d is %f" % (j + 1, np.mean(illegals)))
-    print("Mean losses at round %d is %f" % (j + 1, np.mean(losses)))
-    print("Mean draws at round %d is %f" % (j + 1, np.mean(draws)))
-    print("Mean wins at round %d is %f" % (j + 1, np.mean(wins)))
+            if abs(reward - env.DRAW_REWARD) < 0.001:
+                draws.append(1.0)
+            else:
+                draws.append(0.0)
 
-    avg_rewards.append({(j + 1) * rollouts: np.mean(rewards)})
+            if abs(reward - env.WIN_REWARD) < 0.001:
+                wins.append(1.0)
+            else:
+                wins.append(0.0)
+
+        print("play level: %d" % (play_level))
+        print("Mean reward at round %d is %f" % (j + 1, np.mean(rewards)))
+        print("Mean illegals at round %d is %f" % (j + 1, np.mean(illegals)))
+        print("Mean losses at round %d is %f" % (j + 1, np.mean(losses)))
+        print("Mean draws at round %d is %f" % (j + 1, np.mean(draws)))
+        print("Mean wins at round %d is %f" % (j + 1, np.mean(wins)))
+
+        avg_rewards.append({(j + 1) * rollouts: np.mean(rewards)})
   return avg_rewards
 
 

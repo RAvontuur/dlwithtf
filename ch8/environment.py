@@ -43,6 +43,7 @@ class ConnectFourEnvironment(Environment):
     super(ConnectFourEnvironment, self).__init__([(7, 6, 2)], 7)
     self.state = None
     self.terminated = None
+    self.play_level = 100
     self.reset()
     self.reward_rules_only(False)
 
@@ -59,6 +60,9 @@ class ConnectFourEnvironment(Environment):
       self.NOT_LOSS = 0.1
       self.DRAW_REWARD = 5.0
       self.WIN_REWARD = 10.0
+
+  def set_play_level(self, level):
+    self.play_level = level
 
   def reset(self):
     self.terminated = False
@@ -106,21 +110,23 @@ class ConnectFourEnvironment(Environment):
         if np.all(self.state[0][col][5] == ConnectFourEnvironment.EMPTY):
           free_columns.append(col)
 
-    # try to find winning move
-    for action_O in free_columns:
-      self.apply_move(ConnectFourEnvironment.O, action_O)
-      if self.check_winner(ConnectFourEnvironment.O, action_O):
-        return action_O
-      self.cancel_move(ConnectFourEnvironment.O, action_O)
+    if self.play_level > 0:
+      # try to find winning move
+      for action_O in free_columns:
+        self.apply_move(ConnectFourEnvironment.O, action_O)
+        if self.check_winner(ConnectFourEnvironment.O, action_O):
+          return action_O
+        self.cancel_move(ConnectFourEnvironment.O, action_O)
 
-    # prevent opponent making a connect four
-    for action_T in free_columns:
-      self.apply_move(ConnectFourEnvironment.X, action_T)
-      prevent_win = self.check_winner(ConnectFourEnvironment.X, action_T)
-      self.cancel_move(ConnectFourEnvironment.X, action_T)
-      if prevent_win:
-        self.apply_move(ConnectFourEnvironment.O, action_T)
-        return action_T
+    if self.play_level > 1:
+      # prevent opponent making a connect four
+      for action_T in free_columns:
+        self.apply_move(ConnectFourEnvironment.X, action_T)
+        prevent_win = self.check_winner(ConnectFourEnvironment.X, action_T)
+        self.cancel_move(ConnectFourEnvironment.X, action_T)
+        if prevent_win:
+          self.apply_move(ConnectFourEnvironment.O, action_T)
+          return action_T
 
     action_O = random.choice(free_columns)
     self.apply_move(ConnectFourEnvironment.O, action_O)

@@ -415,3 +415,77 @@ class MaxValue(Layer):
     out_tensor = tf.gather_nd(input0, gather_indices) # apply simple indexing into matrix input0
     self.out_tensor = out_tensor
     return out_tensor
+
+
+class Conv2D(Layer):
+  def __init__(self, name, shape, in_layers=None, **kwargs):
+    super(Conv2D, self).__init__(in_layers, **kwargs)
+    self.name = name
+    self.shape = shape
+
+  def create_tensor(self, in_layers=None, **kwargs):
+    with tf.variable_scope(self.name):
+      conv_weights = tf.Variable(
+          tf.truncated_normal(self.shape,
+                          stddev=0.1,
+                          seed=None, dtype=tf.float32))
+      conv_biases = tf.Variable(tf.zeros([self.shape[3]], dtype=tf.float32))
+
+      inputs = self._get_input_tensors(in_layers)
+      input0 = inputs[0]
+      conv = tf.nn.conv2d(input0,
+                      conv_weights,
+                      strides=[1, 1, 1, 1],
+                      padding='SAME')
+
+      # Bias and rectified linear non-linearity.
+
+      relu = tf.nn.relu(tf.nn.bias_add(conv, conv_biases))
+
+      # Max pooling. The kernel size spec {ksize} also follows the layout
+      # of the data. Here we have a pooling window of 2, and a stride of
+      # 2.
+      pool = tf.nn.max_pool(relu,
+                        ksize=[1, 2, 2, 1],
+                        strides=[1, 2, 2, 1],
+                        padding='SAME')
+
+      out_tensor = pool
+      self.out_tensor = out_tensor
+      return out_tensor
+
+
+class MultiRNN(Layer):
+  def __init__(self, in_layers=None, is_training=False, keep_prob=1.0, cell_size=84, num_layers=3, **kwargs):
+    self.is_training = is_training
+    self.keep_prob = keep_prob
+    self.cell_size = cell_size
+    self.num_layers = num_layers
+    super(MultiRNN, self).__init__(in_layers, **kwargs)
+
+  def create_tensor(self, in_layers=None, **kwargs):
+    inputs = self._get_input_tensors(in_layers)
+    input0 = inputs[0]
+
+    def lstm_cell():
+      return tf.contrib.rnn.BasicLSTMCell(self.cell_size, forget_bias=0.0, state_is_tuple=True,
+                                             reuse=tf.get_variable_scope().reuse)
+
+    attn_cell = lstm_cell
+    if self.is_training and self.keep_prob < 1:
+      def attn_cell():
+        return tf.contrib.rnn.DropoutWrapper(lstm_cell(), output_keep_prob=self.keep_prob)
+
+    attn_cells = [attn_cell() for _ in range(self.num_layers)]
+    out_tensor = tf.contrib.rnn.MultiRNNCell(attn_cells, state_is_tuple=True)
+
+  #  TODO
+  #   state = self.initial_state
+  # with tf.variable_scope("RNN"):
+  #   for time_step in range(num_steps):
+  #     if time_step > 0: tf.get_variable_scope().reuse_variables()
+  #     (cell_output, state) = cell(inputs[:, time_step, :], state)
+  #     outputs.append(cell_output)
+
+    self.out_tensor = out_tensor
+    return out_tensor

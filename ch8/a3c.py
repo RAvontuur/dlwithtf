@@ -28,6 +28,8 @@ from tensorgraph import Input
 from tensorgraph import Add
 from tensorgraph import Scale
 from tensorgraph import MaxValue
+from tensorgraph import Conv2D
+from tensorgraph import MultiRNN
 
 
 class A3CLoss(Layer):
@@ -143,17 +145,12 @@ class A3C(object):
     features = []
     for s in state_shape:
       features.append(Input(shape=[None] + list(s), dtype=tf.float32))
-    d1 = Flatten(in_layers=features)
-    d2 = Dense(
-        in_layers=[d1],
-        activation_fn=tf.nn.relu,
-        out_channels=336,
-        trainable=self.train_wins)
-    d3 = Dense(
-        in_layers=[d2],
-        activation_fn=tf.nn.relu,
-        out_channels=168,
-        trainable=self.train_wins)
+
+    d1 = Conv2D(in_layers=features, name="conv1", shape=[5, 5, 2, 42])
+    d2 = Conv2D(in_layers=d1, name="conv2", shape=[5, 4, 42, 84])
+
+    d3 = Flatten(in_layers=d2)
+
     d4 = Dense(
         in_layers=[d3],
         activation_fn=tf.nn.relu,
