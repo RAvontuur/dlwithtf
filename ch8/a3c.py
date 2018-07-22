@@ -98,6 +98,7 @@ class A3C(object):
                optimizer=None,
                learning_rate=0.001,
                model_dir=None,
+               training = False,
                train_rules=True,
                random_train=True):
     """Create an object for optimizing a policy.
@@ -130,6 +131,7 @@ class A3C(object):
     self.entropy_weight = entropy_weight
     self._optimizer = None
     self.learning_rate = learning_rate
+    self.training = training
     self.train_rules = train_rules
     self.train_wins = (train_rules == False)
     self.random_train = random_train
@@ -157,7 +159,7 @@ class A3C(object):
         out_channels=84,
         trainable=self.train_wins)
     d4 = BatchNorm(in_layers=[d4])
-    d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=7, trainable=self.train_wins)
+    d5 = Dense(in_layers=[d4], activation_fn=None, out_channels=7, training=self.training ,trainable=self.train_wins)
 
     # d2b = Dense(in_layers=[d1], activation_fn=None, out_channels=7,
     #            # biases_initializer=tictactoe_rules_biases,

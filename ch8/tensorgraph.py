@@ -233,6 +233,7 @@ class Dense(Layer):
       weights_initializer=None,
       biases_regularizer=None,
       weights_regularizer=None,
+      drop_outs=False,
       trainable=True,
       **kwargs):
     """Create a dense layer.
@@ -262,6 +263,7 @@ class Dense(Layer):
     self.weights_initializer = weights_initializer
     self.biases_regularizer = biases_regularizer
     self.weights_regularizer = weights_regularizer
+    self.drop_outs = drop_outs
     self.trainable = trainable
 
   def create_tensor(self, in_layers=None, **kwargs):
@@ -288,6 +290,12 @@ class Dense(Layer):
                                                    weights_regularizer=self.weights_regularizer,
                                                    reuse=False,
                                                    trainable=self.trainable)
+
+    # Add a 50% dropout during training only. Dropout also scales
+    # activations such that no rescaling is needed at evaluation time.
+    if self.drop_outs:
+      out_tensor = tf.nn.dropout(out_tensor, 0.5)
+
     self.out_tensor = out_tensor
     return out_tensor
 

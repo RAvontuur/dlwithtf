@@ -66,9 +66,23 @@ def eval_tic_tac_toe():
         model_dir=model_dir,
         learning_rate=learning_rates[j],
         advantage_lambda=advantage_lambda,
+        training = True,
         train_rules= train_rules,
         random_train = random_train
         )
+
+    a3c_engine_val = A3C(
+        env,
+        entropy_weight=entropy_weight,
+        discount_factor=discount_factor,
+        value_weight=value_weight,
+        model_dir=model_dir,
+        learning_rate=learning_rates[j],
+        advantage_lambda=advantage_lambda,
+        training = False,
+        train_rules= train_rules,
+        random_train = random_train
+    )
 
     a3c_engine.fit(rollouts, restore=True)
 
@@ -77,6 +91,7 @@ def eval_tic_tac_toe():
 
     print_example_plays = False
 
+    a3c_engine_val.restore()
     for play_level in range(3):
         env.set_play_level(play_level)
         rewards = []
@@ -88,7 +103,7 @@ def eval_tic_tac_toe():
             env.reset()
             reward = -float('inf')
             while not env.terminated:
-                action, probabilities, value = a3c_engine.select_action(env.state, deterministic=True)
+                action, probabilities, value = a3c_engine_val.select_action(env.state, deterministic=True)
                 reward = env.step(action)
                 if print_example_plays and (i < 10):
                     print('action: {}'.format(action))
